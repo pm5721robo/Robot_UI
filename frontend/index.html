@@ -1,0 +1,1138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Robot Delivery System</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #F0F2F5;
+    --surface: #FFFFFF;
+    --surface-2: #F7F8FA;
+    --border: #E4E7ED;
+    --accent: #1A6BFF;
+    --accent-soft: #EBF1FF;
+    --accent-2: #00C896;
+    --accent-2-soft: #E6FAF5;
+    --warning: #FF8C00;
+    --warning-soft: #FFF4E5;
+    --danger: #FF3B5C;
+    --danger-soft: #FFEBEF;
+    --text-primary: #0D1117;
+    --text-secondary: #5A6474;
+    --text-muted: #9AA3B0;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.04);
+    --shadow-lg: 0 8px 24px rgba(0,0,0,0.09), 0 4px 8px rgba(0,0,0,0.04);
+    --radius: 14px;
+    --radius-sm: 8px;
+    --font: 'DM Sans', sans-serif;
+    --mono: 'DM Mono', monospace;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text-primary);
+    min-height: 100vh;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* ── HEADER ── */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .header-inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 24px;
+    height: 62px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .logo { display: flex; align-items: center; gap: 10px; }
+
+  .logo-icon {
+    width: 34px; height: 34px;
+    background: var(--accent);
+    border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .logo-icon svg { width: 18px; height: 18px; }
+
+  .logo-text { font-size: 15px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.3px; }
+  .logo-sub  { font-size: 11px; font-weight: 400; color: var(--text-muted); margin-left: 2px; }
+
+  .header-right { display: flex; align-items: center; gap: 12px; }
+
+  .status-pill {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--accent-2-soft);
+    color: #00A87A;
+    font-size: 12px; font-weight: 600;
+    padding: 5px 11px;
+    border-radius: 20px;
+    border: 1px solid rgba(0,200,150,0.2);
+  }
+
+  .status-dot {
+    width: 7px; height: 7px;
+    background: var(--accent-2);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(0.85); }
+  }
+
+  .btn-dev {
+    background: var(--accent); color: #fff;
+    border: none; padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    font-family: var(--font); font-size: 13px; font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+    box-shadow: 0 2px 8px rgba(26,107,255,0.3);
+    white-space: nowrap;
+  }
+  .btn-dev:hover { background: #1459E0; box-shadow: 0 4px 14px rgba(26,107,255,0.4); transform: translateY(-1px); }
+  .btn-dev:active { transform: translateY(0); }
+
+  .collect-enabled {
+    background: var(--accent-2) !important;
+    color: #fff !important;
+    border: 2px solid var(--accent-2) !important;
+    cursor: pointer !important;
+    box-shadow: 0 4px 14px rgba(0,200,150,0.35) !important;
+    animation: collectPulse 2s infinite;
+  }
+  .collect-enabled:hover { background: #00A87A !important; transform: translateY(-1px); }
+  @keyframes collectPulse {
+    0%, 100% { box-shadow: 0 4px 14px rgba(0,200,150,0.35); }
+    50%       { box-shadow: 0 4px 22px rgba(0,200,150,0.6); }
+  }
+
+  /* ── MAIN ── */
+  main {
+    max-width: 1280px; margin: 0 auto;
+    padding: 24px 24px 48px;
+    display: flex; flex-direction: column; gap: 20px;
+  }
+
+  .card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
+    transition: box-shadow 0.2s;
+  }
+  .card:hover { box-shadow: var(--shadow-lg); }
+
+  .card-header {
+    padding: 18px 22px 14px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  }
+
+  .card-title-group { display: flex; align-items: center; gap: 10px; }
+
+  .card-icon {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .card-icon svg { width: 16px; height: 16px; }
+
+  .icon-blue   { background: var(--accent-soft);   color: var(--accent); }
+  .icon-green  { background: var(--accent-2-soft);  color: var(--accent-2); }
+  .icon-orange { background: var(--warning-soft);   color: var(--warning); }
+  .icon-red    { background: var(--danger-soft);    color: var(--danger); }
+
+  .card-title { font-size: 14px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.2px; }
+  .card-desc  { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
+
+  .badge { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 20px; white-space: nowrap; }
+  .badge-blue   { background: var(--accent-soft);   color: var(--accent); }
+  .badge-green  { background: var(--accent-2-soft);  color: #009970; }
+  .badge-orange { background: var(--warning-soft);   color: var(--warning); }
+  .badge-red    { background: var(--danger-soft);    color: var(--danger); }
+  .badge-gray   { background: #F0F2F5;               color: var(--text-secondary); }
+
+  /* ── FORM ── */
+  .form-body { padding: 20px 22px; }
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr auto;
+    gap: 12px; align-items: end;
+  }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+
+  label { font-size: 12px; font-weight: 600; color: var(--text-secondary); letter-spacing: 0.3px; text-transform: uppercase; }
+
+  select {
+    width: 100%; padding: 9px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-family: var(--font); font-size: 13.5px;
+    color: var(--text-primary); background: var(--surface);
+    cursor: pointer; appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5L6 8l3.5-3.5' stroke='%239AA3B0' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 12px center;
+    padding-right: 32px;
+    transition: border-color 0.15s, box-shadow 0.15s; outline: none;
+  }
+  select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(26,107,255,0.12); }
+
+  .btn-submit {
+    background: var(--accent); color: #fff; border: none;
+    padding: 10px 22px; border-radius: var(--radius-sm);
+    font-family: var(--font); font-size: 13.5px; font-weight: 600;
+    cursor: pointer; white-space: nowrap;
+    transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+    box-shadow: 0 2px 8px rgba(26,107,255,0.28); height: 39px;
+  }
+  .btn-submit:hover { background: #1459E0; box-shadow: 0 4px 14px rgba(26,107,255,0.38); transform: translateY(-1px); }
+  .btn-submit:active { transform: translateY(0); }
+
+  /* ── MIDDLE ROW ── */
+  .middle-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+  /* ── CURRENT TASK ── */
+  .task-body { padding: 20px 22px; }
+  .task-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+
+  .meta-item {
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 11px 14px;
+  }
+  .meta-label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px; }
+  .meta-value { font-family: var(--mono); font-size: 14px; font-weight: 500; color: var(--text-primary); }
+
+  .task-status-bar {
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 12px 14px;
+  }
+  .task-status-label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 8px; }
+
+  .status-track { display: flex; align-items: center; gap: 0; position: relative; }
+
+  .step { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; position: relative; }
+
+  .step-dot {
+    width: 22px; height: 22px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700; z-index: 2; position: relative;
+  }
+  .step-dot.done   { background: var(--accent-2); color: #fff; }
+  .step-dot.active { background: var(--accent); color: #fff; box-shadow: 0 0 0 4px rgba(26,107,255,0.15); }
+  .step-dot.todo   { background: var(--border); color: var(--text-muted); }
+
+  .step-label { font-size: 10px; font-weight: 500; color: var(--text-muted); text-align: center; white-space: nowrap; }
+  .step-label.active { color: var(--accent); font-weight: 700; }
+
+  .step-line { flex: 1; height: 2px; background: var(--border); margin-bottom: 14px; position: relative; }
+  .step-line.done { background: var(--accent-2); }
+
+  /* ── ALERTS ── */
+  .alerts-body { padding: 12px 22px 18px; }
+  .alert-item { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--border); }
+  .alert-item:last-child { border-bottom: none; }
+  .alert-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 14px; }
+  .alert-msg  { flex: 1; font-size: 13px; font-weight: 500; color: var(--text-primary); }
+  .alert-time { font-size: 11.5px; color: var(--text-muted); font-family: var(--mono); }
+
+  /* ── TABLE ── */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  thead tr { background: var(--surface-2); border-bottom: 1px solid var(--border); }
+  th { padding: 10px 16px; text-align: left; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.12s; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--surface-2); }
+  td { padding: 12px 16px; font-size: 13.5px; color: var(--text-primary); vertical-align: middle; }
+
+  .pos-num { width: 24px; height: 24px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: var(--text-secondary); }
+  .task-id-cell { font-family: var(--mono); font-size: 12.5px; font-weight: 500; color: var(--accent); }
+  .room-tag { display: inline-flex; align-items: center; gap: 4px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: 3px 8px; font-size: 12px; font-weight: 500; font-family: var(--mono); color: var(--text-secondary); }
+  .user-cell { display: flex; align-items: center; gap: 7px; }
+  .avatar { width: 24px; height: 24px; border-radius: 50%; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: #fff; }
+
+  /* ── MOBILE ── */
+  .queue-mobile { display: none; }
+  .queue-mobile-item { margin: 0 22px 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px 16px; }
+  .queue-mobile-item:first-child { margin-top: 14px; }
+  .qmi-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .qmi-pos { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; }
+  .qmi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .qmi-field { display: flex; flex-direction: column; gap: 3px; }
+  .qmi-label { font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; }
+  .qmi-val { font-size: 13px; font-weight: 500; color: var(--text-primary); }
+
+  .mobile-task-card { display: none; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 16px; margin: 16px 22px; }
+  .mobile-task-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; }
+  .mobile-task-row + .mobile-task-row { border-top: 1px solid var(--border); margin-top: 5px; padding-top: 8px; }
+  .mtl { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; }
+  .mtv { font-size: 13.5px; font-weight: 500; color: var(--text-primary); }
+
+  @media (max-width: 900px) { .middle-row { grid-template-columns: 1fr; } }
+
+  @media (max-width: 700px) {
+    main { padding: 16px 14px 40px; gap: 16px; }
+    .header-inner { padding: 0 16px; }
+    .logo-sub { display: none; }
+    .status-pill { display: none; }
+    .form-row { grid-template-columns: 1fr; }
+    .btn-submit { width: 100%; }
+    .table-desktop-current { display: none; }
+    .mobile-task-card { display: block; }
+    .queue-desktop { display: none; }
+    .queue-mobile { display: block; }
+    .task-meta { grid-template-columns: 1fr 1fr; }
+  }
+
+  @media (max-width: 480px) {
+    .card-header { padding: 14px 16px 12px; }
+    .form-body { padding: 16px; }
+    .task-body { padding: 16px; }
+    .alerts-body { padding: 8px 16px 14px; }
+    th, td { padding: 10px 12px; }
+    .queue-mobile-item { margin: 0 16px 10px; }
+    .queue-mobile-item:first-child { margin-top: 12px; }
+    .mobile-task-card { margin: 12px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ── HEADER ── -->
+<header>
+  <div class="header-inner">
+    <div class="logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="5" y="8" width="14" height="10" rx="2.5" fill="white" opacity="0.9"/>
+          <circle cx="9" cy="20" r="1.5" fill="white"/>
+          <circle cx="15" cy="20" r="1.5" fill="white"/>
+          <rect x="10" y="4" width="4" height="4" rx="1" fill="white" opacity="0.7"/>
+          <circle cx="9" cy="12" r="1.5" fill="#1A6BFF"/>
+          <circle cx="15" cy="12" r="1.5" fill="#1A6BFF"/>
+          <path d="M9 15h6" stroke="#1A6BFF" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div>
+        <div class="logo-text">Robot Delivery System <span class="logo-sub">v2.4.1</span></div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="status-pill" id="robot-status-pill">
+        <div class="status-dot"></div>
+        <span id="robot-status-text">Connecting...</span>
+      </div>
+      <button class="btn-dev">Developer Dashboard</button>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <!-- ── SECTION 1: CREATE DELIVERY ── -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title-group">
+        <div class="card-icon icon-blue">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>
+          </svg>
+        </div>
+        <div>
+          <div class="card-title">Create Delivery Request</div>
+          <div class="card-desc">Schedule a new robot delivery task</div>
+        </div>
+      </div>
+    </div>
+    <div class="form-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Pickup Room</label>
+          <select id="pickup-select"><option value="">Loading rooms...</option></select>
+        </div>
+        <div class="form-group">
+          <label>Drop Room</label>
+          <select id="drop-select"><option value="">Loading rooms...</option></select>
+        </div>
+        <div class="form-group">
+          <label>Your Name</label>
+          <input type="text" id="requested-by" placeholder="Enter your name"
+            style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:var(--font);font-size:13.5px;color:var(--text-primary);background:var(--surface);outline:none;transition:border-color 0.15s,box-shadow 0.15s;"
+            onfocus="this.style.borderColor='var(--accent)';this.style.boxShadow='0 0 0 3px rgba(26,107,255,0.12)'"
+            onblur="this.style.borderColor='var(--border)';this.style.boxShadow='none'"
+          />
+        </div>
+        <div class="form-group">
+          <label>Priority</label>
+          <select id="priority-select">
+            <option value="">Select priority...</option>
+            <option value="Low">Low</option>
+            <option value="Medium" selected>Medium</option>
+            <option value="High">High</option>
+          </select>
+        </div>
+        <button class="btn-submit" id="submit-btn" onclick="submitDelivery()">Submit Request</button>
+      </div>
+      <div id="submit-msg" style="margin-top:10px;font-size:13px;display:none;"></div>
+    </div>
+  </div>
+
+  <!-- ── MIDDLE ROW ── -->
+  <div class="middle-row">
+
+    <!-- ── SECTION 2: CURRENT TASK ── -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title-group">
+          <div class="card-icon icon-green">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="5 3 19 12 5 21 5 3"/>
+            </svg>
+          </div>
+          <div>
+            <div class="card-title">Robot Current Task</div>
+            <div class="card-desc">Live execution status</div>
+          </div>
+        </div>
+        <span class="badge badge-gray" id="current-task-badge">● Idle</span>
+      </div>
+
+      <!-- Desktop -->
+      <div class="task-body table-desktop-current">
+        <div class="task-meta">
+          <div class="meta-item">
+            <div class="meta-label">Job ID</div>
+            <div class="meta-value" id="current-task-id">—</div>
+          </div>
+          <div class="meta-item">
+            <div class="meta-label">Status</div>
+            <div class="meta-value" id="current-task-status" style="color:var(--text-muted);font-size:13px;">Robot Idle</div>
+          </div>
+          <div class="meta-item">
+            <div class="meta-label">Pickup</div>
+            <div class="meta-value" id="current-task-pickup">—</div>
+          </div>
+          <div class="meta-item">
+            <div class="meta-label">Drop</div>
+            <div class="meta-value" id="current-task-drop">—</div>
+          </div>
+        </div>
+
+        <div class="task-status-bar">
+          <div class="task-status-label">Progress</div>
+          <div class="status-track">
+            <div class="step">
+              <div class="step-dot todo" id="step-dot-1">1</div>
+              <div class="step-label" id="step-lbl-1">Queued</div>
+            </div>
+            <div class="step-line" id="step-line-1"></div>
+            <div class="step">
+              <div class="step-dot todo" id="step-dot-2">2</div>
+              <div class="step-label" id="step-lbl-2">To Pickup</div>
+            </div>
+            <div class="step-line" id="step-line-2"></div>
+            <div class="step">
+              <div class="step-dot todo" id="step-dot-3">3</div>
+              <div class="step-label" id="step-lbl-3">Collecting</div>
+            </div>
+            <div class="step-line" id="step-line-3"></div>
+            <div class="step">
+              <div class="step-dot todo" id="step-dot-4">4</div>
+              <div class="step-label" id="step-lbl-4">Delivering</div>
+            </div>
+            <div class="step-line" id="step-line-4"></div>
+            <div class="step">
+              <div class="step-dot todo" id="step-dot-5">✓</div>
+              <div class="step-label" id="step-lbl-5">Done</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Collect Parcel Button -->
+        <div id="collect-btn-wrap" style="margin-top:14px;">
+          <button
+            id="collect-parcel-btn"
+            disabled
+            onclick="confirmCollection()"
+            style="width:100%;padding:12px;border-radius:var(--radius-sm);border:2px dashed var(--border);background:var(--surface-2);color:var(--text-muted);font-family:var(--font);font-size:14px;font-weight:600;cursor:not-allowed;display:flex;align-items:center;justify-content:center;gap:8px;transition:all 0.2s;">
+            <span style="font-size:18px;">📦</span>
+            Collect Parcel — Waiting for Robot to Arrive
+          </button>
+          <div id="collect-hint" style="text-align:center;font-size:11.5px;color:var(--text-muted);margin-top:6px;">
+            This button activates when the robot reaches the pickup room
+          </div>
+        </div>
+        <div id="deliver-btn-wrap" style="margin-top:10px;">
+          <button
+            id="parcel-received-btn"
+            disabled
+            onclick="confirmDelivery()"
+            style="width:100%;padding:12px;border-radius:var(--radius-sm);border:2px dashed var(--border);background:var(--surface-2);color:var(--text-muted);font-family:var(--font);font-size:14px;font-weight:600;cursor:not-allowed;display:flex;align-items:center;justify-content:center;gap:8px;transition:all 0.2s;">
+            <span style="font-size:18px;">✅</span>
+            Parcel Received — Waiting for Robot to Arrive
+          </button>
+          <div id="deliver-hint" style="text-align:center;font-size:11.5px;color:var(--text-muted);margin-top:6px;">
+            This button activates when the robot reaches the drop room
+          </div>
+        </div>
+      </div>
+
+      <!-- Mobile -->
+      <div class="mobile-task-card">
+        <div class="mobile-task-row">
+          <span class="mtl">Job ID</span>
+          <span class="mtv" style="font-family:var(--mono);color:var(--accent)" id="m-task-id">—</span>
+        </div>
+        <div class="mobile-task-row">
+          <span class="mtl">Pickup</span>
+          <span class="mtv" id="m-task-pickup">—</span>
+        </div>
+        <div class="mobile-task-row">
+          <span class="mtl">Drop</span>
+          <span class="mtv" id="m-task-drop">—</span>
+        </div>
+        <div class="mobile-task-row">
+          <span class="mtl">Status</span>
+          <span class="badge badge-gray" id="m-task-status">Robot Idle</span>
+        </div>
+        <div style="margin-top:12px;">
+          <button id="collect-parcel-btn-mobile" disabled onclick="confirmCollection()"
+            style="width:100%;padding:11px;border-radius:var(--radius-sm);border:2px dashed var(--border);background:var(--surface-2);color:var(--text-muted);font-family:var(--font);font-size:13px;font-weight:600;cursor:not-allowed;display:flex;align-items:center;justify-content:center;gap:8px;">
+            <span>📦</span> Collect Parcel
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── SECTION 4: ROBOT ALERTS ── -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title-group">
+          <div class="card-icon icon-orange">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+          </div>
+          <div>
+            <div class="card-title">Robot Alerts &amp; Info</div>
+            <div class="card-desc">System messages &amp; notifications</div>
+          </div>
+        </div>
+        <span class="badge badge-orange" id="alerts-badge">0 Alerts</span>
+      </div>
+      <div class="alerts-body" id="alerts-body">
+        <div class="alert-item">
+          <div class="alert-icon" style="background:#F0F2F5;">💤</div>
+          <div class="alert-msg" style="color:var(--text-muted);">No alerts — robot is idle</div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end middle-row -->
+
+  <!-- ── SECTION 3: TASK QUEUE ── -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title-group">
+        <div class="card-icon icon-blue">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/>
+            <line x1="8" y1="18" x2="21" y2="18"/>
+            <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/>
+            <line x1="3" y1="18" x2="3.01" y2="18"/>
+          </svg>
+        </div>
+        <div>
+          <div class="card-title">Task Queue</div>
+          <div class="card-desc">Pending delivery requests</div>
+        </div>
+      </div>
+      <span class="badge badge-gray" id="queue-count-badge">0 Pending</span>
+    </div>
+
+    <!-- Desktop table -->
+    <div class="table-wrap queue-desktop">
+      <table>
+        <thead>
+          <tr>
+            <th>Pos</th><th>Task ID</th><th>Pickup</th><th>Drop</th>
+            <th>Requested By</th><th>Priority</th><th>Status</th><th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="queue-tbody">
+          <tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:24px;">Loading queue...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Mobile -->
+    <div class="queue-mobile" id="queue-mobile-list">
+      <div style="text-align:center;color:var(--text-muted);padding:24px 16px;">Loading queue...</div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// 🔧 CONFIGURATION — Update this when your network/IP changes
+// ═══════════════════════════════════════════════════════════════
+// How to find your IP:
+//   On Jetson Nano / Laptop → open terminal → run: hostname -I
+//   Use the first IP shown, e.g. 192.168.1.50
+//
+// Format: 'http://YOUR_IP_HERE:8000'
+// Example: 'http://192.168.1.50:8000'
+//
+const API = 192.168.29.183'http://YOUR_IP_HERE:8000';
+//
+// ═══════════════════════════════════════════════════════════════
+
+
+// ── Room Loader ────────────────────────────────────────────────────────────
+async function loadRooms() {
+  const pickupSelect = document.getElementById('pickup-select');
+  const dropSelect   = document.getElementById('drop-select');
+  try {
+    const response = await fetch(API + '/api/rooms');
+    if (!response.ok) throw new Error(`Server returned ${response.status}`);
+    const rooms = await response.json();
+    const defaultOption = `<option value="">Select room...</option>`;
+    const options = rooms.map(room =>
+      `<option value="${room.id}">${room.id} — ${room.description}</option>`
+    ).join('');
+    pickupSelect.innerHTML = defaultOption + options;
+    dropSelect.innerHTML   = defaultOption + options;
+    console.log(`[rooms] Loaded ${rooms.length} rooms`);
+  } catch (err) {
+    console.error('[rooms] Failed:', err);
+    const errOpt = `<option value="">⚠ Could not load rooms</option>`;
+    pickupSelect.innerHTML = errOpt;
+    dropSelect.innerHTML   = errOpt;
+    pickupSelect.style.borderColor = 'var(--danger)';
+    dropSelect.style.borderColor   = 'var(--danger)';
+  }
+}
+
+function syncSelects() {
+  const pickup = document.getElementById('pickup-select');
+  const drop   = document.getElementById('drop-select');
+  pickup.addEventListener('change', () => {
+    Array.from(drop.options).forEach(opt => { opt.disabled = opt.value !== '' && opt.value === pickup.value; });
+  });
+  drop.addEventListener('change', () => {
+    Array.from(pickup.options).forEach(opt => { opt.disabled = opt.value !== '' && opt.value === drop.value; });
+  });
+}
+
+// ── Submit Delivery ────────────────────────────────────────────────────────
+async function submitDelivery() {
+  const pickup   = document.getElementById('pickup-select').value;
+  const drop     = document.getElementById('drop-select').value;
+  const name     = document.getElementById('requested-by').value.trim();
+  const priority = document.getElementById('priority-select').value;
+  const btn      = document.getElementById('submit-btn');
+
+  if (!pickup)   { showMsg('Please select a Pickup Room.', 'error'); return; }
+  if (!drop)     { showMsg('Please select a Drop Room.', 'error'); return; }
+  if (!name)     { showMsg('Please enter your name.', 'error'); return; }
+  if (!priority) { showMsg('Please select a Priority.', 'error'); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Submitting...';
+
+  try {
+    const res = await fetch(API + '/api/delivery', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pickup, drop, requested_by: name, priority })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      showMsg(`✅ ${data.message}`, 'success');
+      loadQueue();
+      document.getElementById('pickup-select').value   = '';
+      document.getElementById('drop-select').value     = '';
+      document.getElementById('requested-by').value    = '';
+      document.getElementById('priority-select').value = 'Medium';
+    } else {
+      showMsg(`❌ ${data.detail}`, 'error');
+    }
+  } catch (err) {
+    showMsg('❌ Could not reach server.', 'error');
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Submit Request';
+}
+
+function showMsg(text, type) {
+  const box = document.getElementById('submit-msg');
+  box.textContent = text;
+  box.style.display = 'block';
+  box.style.color = type === 'success' ? 'var(--accent-2)' : 'var(--danger)';
+  box.style.fontWeight = '600';
+  setTimeout(() => { box.style.display = 'none'; }, 4000);
+}
+
+// ── Avatar & Priority helpers ──────────────────────────────────────────────
+const AVATAR_COLORS = ['#6366F1','#EC4899','#F59E0B','#10B981','#3B82F6','#EF4444','#8B5CF6','#14B8A6'];
+function avatarColor(name) {
+  let hash = 0;
+  for (let c of name) hash = c.charCodeAt(0) + ((hash << 5) - hash);
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+function priorityBadge(p) {
+  const map = { High: 'badge-red', Medium: 'badge-orange', Low: 'badge-green' };
+  return `<span class="badge ${map[p] || 'badge-gray'}">${p}</span>`;
+}
+
+// ── Cancel task ────────────────────────────────────────────────────────────
+async function cancelTask(taskId) {
+  if (!confirm(`Cancel task ${taskId}?`)) return;
+  try {
+    const res = await fetch(API + `/api/queue/${taskId}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (res.ok) { loadQueue(); }
+    else { alert(data.detail || 'Could not cancel task.'); }
+  } catch (e) { alert('Server unreachable.'); }
+}
+
+// ── Load queue ─────────────────────────────────────────────────────────────
+async function loadQueue() {
+  try {
+    const res = await fetch(API + '/api/queue');
+    if (!res.ok) throw new Error('Failed');
+    const data = await res.json();
+    const tasks = data.tasks || [];
+
+    const badge = document.getElementById('queue-count-badge');
+    if (badge) badge.textContent = `${tasks.length} Pending`;
+
+    // Desktop table
+    const tbody = document.getElementById('queue-tbody');
+    if (tbody) {
+      if (tasks.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:24px;">No pending tasks in queue</td></tr>`;
+      } else {
+        tbody.innerHTML = tasks.map((t, i) => {
+          const initial = (t.requested_by || '?')[0].toUpperCase();
+          const color   = avatarColor(t.requested_by || '');
+          return `<tr>
+              <td><div class="pos-num">${i + 1}</div></td>
+              <td><span class="task-id-cell">${t.job_id || t.task_id}</span></td>
+              <td><span class="room-tag">${t.pickup_room || t.pickup}</span></td>
+              <td><span class="room-tag">${t.dropoff_room || t.drop}</span></td>
+              <td><div class="user-cell"><div class="avatar" style="background:${color};">${initial}</div>${t.requested_by || 'Robot'}</div></td>
+              <td>${priorityBadge(t.priority === 1 ? 'High' : 'Medium')}</td>
+              <td><span class="badge badge-gray">Queued</span></td>
+              <td><button onclick="cancelTask('${t.job_id || t.task_id}')"
+              style="background:var(--danger-soft);color:var(--danger);border:1px solid rgba(255,59,92,0.2);padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">
+              Cancel</button></td>
+          </tr>`;
+        }).join('');
+      }
+    }
+
+    // Mobile cards
+    const mobileList = document.getElementById('queue-mobile-list');
+    if (mobileList) {
+      if (tasks.length === 0) {
+        mobileList.innerHTML = `<div style="text-align:center;color:var(--text-muted);padding:24px 16px;">No pending tasks in queue</div>`;
+      } else {
+        mobileList.innerHTML = tasks.map((t, i) => `
+          <div class="queue-mobile-item">
+            <div class="qmi-header">
+              <span class="qmi-pos">Position #${i + 1}</span>
+              <span class="task-id-cell" style="font-family:var(--mono);font-size:13px;color:var(--accent);">${t.task_id}</span>
+            </div>
+            <div class="qmi-grid">
+              <div class="qmi-field"><div class="qmi-label">Pickup</div><div class="qmi-val">${t.pickup_room || t.pickup}</div></div>
+              <div class="qmi-field"><div class="qmi-label">Drop</div><div class="qmi-val">${t.dropoff_room || t.drop}</div></div>
+              <div class="qmi-field"><div class="qmi-label">Requested By</div><div class="qmi-val">${t.requested_by || 'Robot'}</div></div>
+              <div class="qmi-field"><div class="qmi-label">Priority</div>${priorityBadge(t.priority)}</div>
+            </div>
+            <div style="margin-top:10px;">
+              <button onclick="cancelTask('${t.task_id}')"
+                style="background:var(--danger-soft);color:var(--danger);border:1px solid rgba(255,59,92,0.2);padding:5px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;width:100%;">
+                Cancel Task
+              </button>
+            </div>
+          </div>`).join('');
+      }
+    }
+
+  } catch (err) {
+    console.error('[queue] Failed:', err);
+  }
+}
+
+// ── Current Task ───────────────────────────────────────────────────────────
+async function loadCurrentTask() {
+  try {
+    const res  = await fetch(API + '/api/current-task');
+    const data = await res.json();
+
+    if (data.status === 'idle' || !data.task) {
+      document.getElementById('current-task-id').textContent     = '—';
+      document.getElementById('current-task-pickup').textContent = '—';
+      document.getElementById('current-task-drop').textContent   = '—';
+      document.getElementById('current-task-status').textContent = 'Robot Idle';
+      document.getElementById('current-task-status').style.color = 'var(--text-muted)';
+      document.getElementById('current-task-badge').textContent  = '● Idle';
+      document.getElementById('current-task-badge').className    = 'badge badge-gray';
+      document.getElementById('m-task-id').textContent     = '—';
+      document.getElementById('m-task-pickup').textContent = '—';
+      document.getElementById('m-task-drop').textContent   = '—';
+      document.getElementById('m-task-status').textContent = 'Robot Idle';
+      updateProgressBar(null);
+      disableCollectButton();
+      disableDeliverButton();
+      return;
+    }
+
+    const t = data.task;
+    document.getElementById('current-task-id').textContent     = t.ros_job_id || t.task_id || '—';
+    document.getElementById('current-task-pickup').textContent = t.pickup || '—';
+    document.getElementById('current-task-drop').textContent   = t.drop   || '—';
+    document.getElementById('current-task-status').textContent = t.state_name || t.status || '—';
+    document.getElementById('current-task-status').style.color = 'var(--accent)';
+    document.getElementById('current-task-badge').textContent  = '● In Progress';
+    document.getElementById('current-task-badge').className    = 'badge badge-blue';
+    document.getElementById('m-task-id').textContent     = t.ros_job_id || t.task_id || '—';
+    document.getElementById('m-task-pickup').textContent = t.pickup || '—';
+    document.getElementById('m-task-drop').textContent   = t.drop   || '—';
+    document.getElementById('m-task-status').textContent = t.state_name || t.status || '—';
+
+    updateProgressBar(t.state);
+
+    if (t.state === 3) {
+      enableCollectButton();
+      disableDeliverButton();
+    } else if (t.state === 5) {
+      disableCollectButton();
+      enableDeliverButton();
+    } else {
+      disableCollectButton();
+      disableDeliverButton();
+    }
+
+  } catch (e) {
+    console.error('[current-task] fetch error:', e);
+  }
+}
+
+// ── Load Alerts ────────────────────────────────────────────────────────────
+async function loadAlerts() {
+  try {
+    const res  = await fetch(API + '/api/robot-health');
+    const data = await res.json();
+    const body  = document.getElementById('alerts-body');
+    const badge = document.getElementById('alerts-badge');
+    if (!body) return;
+
+    if (!data.online || !data.health) {
+      body.innerHTML = `
+        <div class="alert-item">
+          <div class="alert-icon" style="background:#F0F2F5;">💤</div>
+          <div class="alert-msg" style="color:var(--text-muted);">No alerts — robot is offline</div>
+        </div>`;
+      if (badge) badge.textContent = '0 Alerts';
+      return;
+    }
+
+    const h = data.health;
+    const alerts = [];
+    const now = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+
+    if (h.system_message) {
+      alerts.push({ icon: '🤖', bg: '#EBF1FF', msg: h.system_message, badge: 'badge-blue', label: 'Info', time: now });
+    }
+    if (h.cpu_percent > 80) {
+      alerts.push({ icon: '🔴', bg: '#FFEBEF', msg: `CPU usage high — ${h.cpu_percent.toFixed(1)}%`, badge: 'badge-red', label: 'Warning', time: now });
+    }
+    if (h.memory_total_mb > 0) {
+      const memPct = (h.memory_used_mb / h.memory_total_mb) * 100;
+      if (memPct > 80) {
+        alerts.push({ icon: '🟠', bg: '#FFF4E5', msg: `Memory usage high — ${memPct.toFixed(1)}%`, badge: 'badge-orange', label: 'Warning', time: now });
+      }
+    }
+
+    const stateMap = {
+      0: { icon: '⚙️', bg: '#F0F2F5', msg: 'Robot booting up...', badge: 'badge-gray', label: 'Booting' },
+      1: { icon: '💤', bg: '#F0F2F5', msg: 'Robot idle — ready for jobs', badge: 'badge-gray', label: 'Idle' },
+      2: { icon: '⚙️', bg: '#EBF1FF', msg: 'Activating navigation stack...', badge: 'badge-blue', label: 'Activating' },
+      3: { icon: '🟢', bg: '#E6FAF5', msg: 'Robot active — executing delivery', badge: 'badge-green', label: 'Active' },
+      4: { icon: '⚙️', bg: '#FFF4E5', msg: 'Deactivating navigation stack...', badge: 'badge-orange', label: 'Deactivating' },
+    };
+    const stateAlert = stateMap[h.supervisor_state];
+    if (stateAlert) alerts.push({ ...stateAlert, time: now });
+
+    if (alerts.length === 0) {
+      body.innerHTML = `
+        <div class="alert-item">
+          <div class="alert-icon" style="background:#E6FAF5;">✅</div>
+          <div class="alert-msg">All systems normal</div>
+        </div>`;
+      if (badge) badge.textContent = '0 Alerts';
+      return;
+    }
+
+    if (badge) badge.textContent = `${alerts.length} Alerts`;
+    body.innerHTML = alerts.map(a => `
+      <div class="alert-item">
+        <div class="alert-icon" style="background:${a.bg};">${a.icon}</div>
+        <div class="alert-msg">${a.msg}</div>
+        <span class="badge ${a.badge}">${a.label}</span>
+        <div class="alert-time">${a.time}</div>
+      </div>`).join('');
+
+  } catch(e) {
+    console.error('[alerts] Failed:', e);
+  }
+}
+
+// ── Robot Online/Offline Status ────────────────────────────────────────────
+async function loadRobotStatus() {
+  try {
+    const res  = await fetch(API + '/api/robot-status');
+    const data = await res.json();
+    const pill = document.getElementById('robot-status-pill');
+    const text = document.getElementById('robot-status-text');
+    const dot  = pill?.querySelector('.status-dot');
+    if (!pill || !text) return;
+    if (data.online) {
+      text.textContent = 'Robot Online';
+      pill.style.background = 'var(--accent-2-soft)';
+      pill.style.color = '#00A87A';
+      pill.style.border = '1px solid rgba(0,200,150,0.2)';
+      if (dot) dot.style.background = 'var(--accent-2)';
+    } else {
+      text.textContent = 'Connecting...';
+      pill.style.background = '#F0F2F5';
+      pill.style.color = 'var(--text-muted)';
+      pill.style.border = '1px solid var(--border)';
+      if (dot) dot.style.background = 'var(--text-muted)';
+    }
+  } catch(e) {
+    console.error('[status] Failed:', e);
+  }
+}
+
+// ── Progress Bar ───────────────────────────────────────────────────────────
+function updateProgressBar(state) {
+  const dots  = [1,2,3,4,5].map(i => document.getElementById(`step-dot-${i}`));
+  const lines = [1,2,3,4].map(i => document.getElementById(`step-line-${i}`));
+  const lbls  = [1,2,3,4,5].map(i => document.getElementById(`step-lbl-${i}`));
+
+  dots.forEach((d,i) => {
+    if (!d) return;
+    d.className = 'step-dot todo';
+    d.textContent = i === 4 ? '✓' : (i + 1);
+  });
+  lines.forEach(l => { if (l) l.className = 'step-line'; });
+  lbls.forEach(l => { if (l) l.classList.remove('active'); });
+
+  if (state === null || state === undefined) return;
+
+  let activeStep = 0;
+  if (state <= 1)                   activeStep = 1;
+  else if (state === 2)             activeStep = 2;
+  else if (state === 3)             activeStep = 3;
+  else if (state >= 4 && state <=6) activeStep = 4;
+  else if (state === 7)             activeStep = 5;
+
+  for (let i = 0; i < 5; i++) {
+    if (!dots[i]) continue;
+    if (i + 1 < activeStep) {
+      dots[i].className = 'step-dot done';
+      dots[i].textContent = '✓';
+      if (lines[i]) lines[i].className = 'step-line done';
+    } else if (i + 1 === activeStep) {
+      dots[i].className = 'step-dot active';
+      dots[i].textContent = i === 4 ? '✓' : (i + 1);
+      if (lbls[i]) lbls[i].classList.add('active');
+    }
+  }
+
+  if (state === 7) {
+    dots.forEach(d => { if (d) { d.className = 'step-dot done'; d.textContent = '✓'; } });
+    lines.forEach(l => { if (l) l.className = 'step-line done'; });
+  }
+}
+
+// ── Collect Parcel Button ──────────────────────────────────────────────────
+function enableCollectButton() {
+  const btn    = document.getElementById('collect-parcel-btn');
+  const btnMob = document.getElementById('collect-parcel-btn-mobile');
+  const hint   = document.getElementById('collect-hint');
+  if (btn) {
+    btn.disabled = false;
+    btn.classList.add('collect-enabled');
+    btn.style.cursor = 'pointer';
+    btn.innerHTML = '<span style="font-size:18px;">📦</span> Collect Parcel — Robot is Waiting!';
+  }
+  if (btnMob) {
+    btnMob.disabled = false;
+    btnMob.classList.add('collect-enabled');
+    btnMob.style.cursor = 'pointer';
+    btnMob.innerHTML = '<span>📦</span> Collect Parcel — Robot is Waiting!';
+  }
+  if (hint) {
+    hint.textContent = '⚠ Robot is at the pickup room. Please collect the parcel and click to confirm.';
+    hint.style.color = 'var(--accent-2)';
+    hint.style.fontWeight = '600';
+  }
+}
+
+function disableCollectButton() {
+  const btn    = document.getElementById('collect-parcel-btn');
+  const btnMob = document.getElementById('collect-parcel-btn-mobile');
+  const hint   = document.getElementById('collect-hint');
+  if (btn) {
+    btn.disabled = true;
+    btn.classList.remove('collect-enabled');
+    btn.style.cursor = 'not-allowed';
+    btn.style.background = '';
+    btn.style.color = '';
+    btn.style.border = '';
+    btn.innerHTML = '<span style="font-size:18px;">📦</span> Collect Parcel — Waiting for Robot to Arrive';
+  }
+  if (btnMob) {
+    btnMob.disabled = true;
+    btnMob.classList.remove('collect-enabled');
+    btnMob.style.cursor = 'not-allowed';
+    btnMob.innerHTML = '<span>📦</span> Collect Parcel';
+  }
+  if (hint) {
+    hint.textContent = 'This button activates when the robot reaches the pickup room';
+    hint.style.color = 'var(--text-muted)';
+    hint.style.fontWeight = 'normal';
+  }
+}
+
+async function confirmCollection() {
+  try {
+    const res = await fetch(API + '/api/confirm-collection', { method: 'POST' });
+    const btn = document.getElementById('collect-parcel-btn');
+    if (btn) {
+      btn.innerHTML = '<span style="font-size:18px;">✅</span> Parcel Collected — Robot Proceeding to Drop';
+      btn.disabled = true;
+      btn.classList.remove('collect-enabled');
+      btn.style.cursor = 'not-allowed';
+      btn.style.background = 'var(--accent-2-soft)';
+      btn.style.color = '#009970';
+      btn.style.border = '2px solid rgba(0,200,150,0.3)';
+    }
+    const hint = document.getElementById('collect-hint');
+    if (hint) {
+      hint.textContent = 'Confirmed! Robot is now heading to the drop room.';
+      hint.style.color = 'var(--accent-2)';
+    }
+  } catch(e) {
+    console.error('[collect] Failed:', e);
+  }
+}
+
+function enableDeliverButton() {
+  const btn  = document.getElementById('parcel-received-btn');
+  const hint = document.getElementById('deliver-hint');
+  if (btn) {
+    btn.disabled = false;
+    btn.classList.add('collect-enabled');
+    btn.style.cursor = 'pointer';
+    btn.innerHTML = '<span style="font-size:18px;">✅</span> Parcel Received — Robot is Waiting!';
+  }
+  if (hint) {
+    hint.textContent = '⚠ Robot is at the drop room. Please confirm parcel received.';
+    hint.style.color = 'var(--accent-2)';
+    hint.style.fontWeight = '600';
+  }
+}
+
+function disableDeliverButton() {
+  const btn  = document.getElementById('parcel-received-btn');
+  const hint = document.getElementById('deliver-hint');
+  if (btn) {
+    btn.disabled = true;
+    btn.classList.remove('collect-enabled');
+    btn.style.cursor = 'not-allowed';
+    btn.style.background = '';
+    btn.style.color = '';
+    btn.style.border = '';
+    btn.innerHTML = '<span style="font-size:18px;">✅</span> Parcel Received — Waiting for Robot to Arrive';
+  }
+  if (hint) {
+    hint.textContent = 'This button activates when the robot reaches the drop room';
+    hint.style.color = 'var(--text-muted)';
+    hint.style.fontWeight = 'normal';
+  }
+}
+
+async function confirmDelivery() {
+  try {
+    const res = await fetch(API + '/api/confirm-delivery', { method: 'POST' });
+    const btn = document.getElementById('parcel-received-btn');
+    if (btn) {
+      btn.innerHTML = '<span style="font-size:18px;">✅</span> Delivery Confirmed — Job Complete!';
+      btn.disabled = true;
+      btn.classList.remove('collect-enabled');
+      btn.style.cursor = 'not-allowed';
+      btn.style.background = 'var(--accent-2-soft)';
+      btn.style.color = '#009970';
+      btn.style.border = '2px solid rgba(0,200,150,0.3)';
+    }
+    const hint = document.getElementById('deliver-hint');
+    if (hint) {
+      hint.textContent = 'Delivery complete! Robot returning home.';
+      hint.style.color = 'var(--accent-2)';
+    }
+  } catch(e) {
+    console.error('[deliver] Failed:', e);
+  }
+}
+
+// ── Auto refresh every 3 seconds ──────────────────────────────────────────
+setInterval(() => {
+  loadQueue();
+  loadCurrentTask();
+  loadAlerts();
+  loadRobotStatus();
+}, 3000);
+
+// ── Init ───────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  loadRooms().then(() => syncSelects());
+  loadQueue();
+  loadCurrentTask();
+  loadAlerts();
+  loadRobotStatus();
+});
+</script>
+</body>
+</html>
