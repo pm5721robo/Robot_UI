@@ -1,6 +1,7 @@
 # requirements.txt — for Railway deployment
-# Only what the cloud server needs (no ROS2, no supabase)
+# Cloud server only (no ROS2)
 fastapi==0.115.0
 uvicorn==0.30.6
 pydantic==2.6.4
 python-multipart==0.0.9
+paho-mqtt==1.6.1
