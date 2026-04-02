@@ -58,17 +58,21 @@ def post(path, data=None):
 
 def push_rooms():
     try:
-        from config import get_rooms
+        from config import load_config, get_rooms
+        load_config()
         rooms = get_rooms()
+        print(f"[nano] Rooms loaded: {len(rooms)}")
         result = post("/api/update_rooms", rooms)
+        print(f"[nano] Push result: {result}")
         if result:
             log.info(f"Pushed {len(rooms)} rooms ✓")
         else:
             log.warning("Failed to push rooms — will retry next restart")
     except Exception as e:
-        log.error(f"push_rooms: {e}")
-
-
+        log.error(f"push_rooms error: {e}")
+        import traceback
+        traceback.print_exc()
+        
 # ── Poll for new job ──────────────────────────────────────────────────────
 
 def poll_job():
