@@ -23,7 +23,7 @@ logging.basicConfig(
 log = logging.getLogger("nano")
 
 # ── Config ────────────────────────────────────────────────────────────────
-CLOUD_URL       = os.getenv("CLOUD_URL", "https://YOUR_RAILWAY_URL")
+CLOUD_URL       = os.getenv("CLOUD_URL", "https://robotui.up.railway.app")
 POLL_INTERVAL   = 2.0  # seconds
 REQUEST_TIMEOUT = 3    # seconds per request
 
