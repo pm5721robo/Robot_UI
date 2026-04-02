@@ -137,8 +137,8 @@ async def list_rooms():
 async def update_rooms(rooms: list):
     global _rooms
     with _lock:
-        _rooms = rooms
-    print(f"[cloud] Rooms updated: {len(rooms)} rooms")
+        _rooms = data.rooms
+    print(f"[cloud] Rooms updated: {len(data.rooms)} rooms")
     return {"success": True}
 
 
