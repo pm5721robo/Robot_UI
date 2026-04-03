@@ -58,7 +58,7 @@ STATUS_MAP = {
 
 # ── Priority Mapping ──────────────────────────────────────────────────────
 PRIORITY_MAP = {
-    "Low":    2,
+    "Low":    0,
     "Medium": 0,
     "High":   1,
 }

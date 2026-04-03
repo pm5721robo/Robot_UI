@@ -180,7 +180,7 @@ def poll_cancellations():
 def push_queue():
     try:
         jobs = ros_bridge.get_job_queue()
-        priority_map = {0: "Medium", 1: "High", 2: "Low"}
+        priority_map = {1: "Medium", 2: "High", 0: "Low"}
         for job in jobs:
             if isinstance(job.get("priority"), int):
                 job["priority"] = priority_map.get(job["priority"], "Medium")

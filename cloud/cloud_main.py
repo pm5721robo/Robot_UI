@@ -165,7 +165,9 @@ async def submit_delivery(req: DeliveryRequest):
         "created_at":   datetime.now(timezone.utc).isoformat(),
     }
     with _lock:
-        _pending_jobs.append(job)
+        pending_jobs.append(job)
+        priority_order = {"High": 0, "Medium": 1, "Low": 2}
+        _pending_jobs.sort(key=lambda x: priority_order.get(x.get("priority", "Medium"), 1))
     print(f"[cloud] Job queued: {job_id} | {req.pickup} → {req.drop}")
     return {"success": True, "job_id": job_id, "message": f"Job queued: {job_id}"}
 
