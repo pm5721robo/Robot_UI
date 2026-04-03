@@ -61,7 +61,7 @@ _confirmations: dict = {
 
 _rooms: list = []
 _queue: list = []   # live queue from ROS via Nano
-
+_cancel_jobs: list = []  # jobs to cancel — nano picks these up
 
 # ── Models ────────────────────────────────────────────────────────────────
 
@@ -185,15 +185,22 @@ async def get_queue():
 @app.delete("/api/queue/{job_id}")
 async def cancel_job(job_id: str):
     with _lock:
+        # Remove from pending queue if not yet dispatched
         before = len(_pending_jobs)
         _pending_jobs[:] = [j for j in _pending_jobs if j["job_id"] != job_id]
         removed = len(_pending_jobs) < before
-    if not removed:
-        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
-    print(f"[cloud] Job cancelled: {job_id}")
-    return {"success": True, "job_id": job_id, "message": "Cancelled"}
+        # Also add to cancel list so nano can cancel active job in ROS2
+        _cancel_jobs.append(job_id)
+    print(f"[cloud] Cancel requested: {job_id}")
+    return {"success": True, "job_id": job_id, "message": "Cancel requested"}
 
 
+@app.get("/api/get_cancellations")
+async def get_cancellations():
+    with _lock:
+        jobs = list(_cancel_jobs)
+        _cancel_jobs.clear()
+    return {"cancel_jobs": jobs}
 # ── UI: Current Task ──────────────────────────────────────────────────────
 
 @app.get("/api/current-task")
@@ -346,3 +353,5 @@ async def health():
         "pending_jobs":  pending,
         "robot_online":  online,
     }
+
+
