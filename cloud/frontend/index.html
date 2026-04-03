@@ -749,7 +749,7 @@ async function loadQueue() {
               <td><span class="room-tag">${t.pickup_room || t.pickup}</span></td>
               <td><span class="room-tag">${t.dropoff_room || t.drop}</span></td>
               <td><div class="user-cell"><div class="avatar" style="background:${color};">${initial}</div>${t.requested_by || 'Robot'}</div></td>
-              <td>${priorityBadge(t.priority === 1 ? 'High' : 'Medium')}</td>
+              <td>${priorityBadge(t.priority === 'High' ? 'High' : t.priority === 'Low' ? 'Low' :  t.priority === 1 ? 'High' : t.priority === 2 ? 'Low' : 'Medium')}</td>
               <td><span class="badge badge-gray">Queued</span></td>
               <td><button onclick="cancelTask('${t.job_id || t.task_id}')"
               style="background:var(--danger-soft);color:var(--danger);border:1px solid rgba(255,59,92,0.2);padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">

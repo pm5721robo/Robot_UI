@@ -31,7 +31,7 @@ REQUEST_TIMEOUT = 3    # seconds per request
 # Much cheaper than creating a new connection every 2 seconds
 session = requests.Session()
 session.headers.update({"Content-Type": "application/json"})
-
+_cancelled_job_ids = set()  # track cancelled jobs to hide from queue
 # ── Import ROS bridge ─────────────────────────────────────────────────────
 import ros_bridge
 
@@ -165,15 +165,34 @@ def poll_confirmations():
         ros_bridge.confirm_job(proceed=True)
 
 
+def poll_cancellations():
+    data = get("/api/get_cancellations")
+    if not data:
+        return
+    for job_id in data.get("cancel_jobs", []):
+        log.info(f"Cancelling job: {job_id}")
+        _cancelled_job_ids.add(job_id)
+        result = ros_bridge.cancel_job(job_id=job_id)
+        log.info(f"Cancel sent to ROS2 for {job_id}")
+
 # ── Push queue ────────────────────────────────────────────────────────────
 
 def push_queue():
     try:
         jobs = ros_bridge.get_job_queue()
-        post("/api/update_queue", {"jobs": jobs, "count": len(jobs)})
+        priority_map = {0: "Medium", 1: "High", 2: "Low"}
+        for job in jobs:
+            if isinstance(job.get("priority"), int):
+                job["priority"] = priority_map.get(job["priority"], "Medium")
+        active_jobs = [
+            j for j in jobs
+            if j.get("job_id") not in _cancelled_job_ids
+            and j.get("state") not in [7, 8, 9]
+            and j.get("state_name") not in ["CANCELLED", "COMPLETE", "FAILED"]
+        ]
+        post("/api/update_queue", {"jobs": active_jobs, "count": len(active_jobs)})
     except Exception as e:
         log.error(f"push_queue: {e}")
-
 
 # ── Main — single thread, no extra memory overhead ────────────────────────
 
@@ -201,6 +220,7 @@ def main():
             poll_job()
             push_status()
             poll_confirmations()
+            poll_cancellations()
             push_queue()
         except Exception as e:
             log.error(f"Loop error: {e}")

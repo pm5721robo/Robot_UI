@@ -58,7 +58,7 @@ STATUS_MAP = {
 
 # ── Priority Mapping ──────────────────────────────────────────────────────
 PRIORITY_MAP = {
-    "Low":    0,
+    "Low":    2,
     "Medium": 0,
     "High":   1,
 }
@@ -286,21 +286,18 @@ class RobotBridgeNode(Node):
 
     # ── Queue Callback ─────────────────────────────────────────────────────
     def _on_job_queue(self, msg: StringMsg) -> None:
-            """Called every 1Hz from /job_queue topic."""
-            try:
-                data = json.loads(msg.data)
-                jobs = data.get("jobs", data.get("queue", []))
-
-# Add active job at top if present
-                active = data.get("active_job")
-                if active:
-                    jobs = [active] + jobs
-
-                self._job_queue = jobs
-                logger.debug(f"[ros_bridge] /job_queue: {len(self._job_queue)} jobs")
-            except Exception as e:
-                logger.error(f"[ros_bridge] Failed to parse /job_queue: {e}")
-    
+        try:
+            data = json.loads(msg.data)
+            jobs = data.get("jobs", data.get("queue", []))
+            active = data.get("active_job")
+            if active:
+                jobs = [active] + jobs
+            # Filter out cancelled/completed/failed jobs
+            jobs = [j for j in jobs if j.get("state") not in [7, 8, 9]]
+            self._job_queue = jobs
+            logger.debug(f"[ros_bridge] /job_queue: {len(self._job_queue)} jobs")
+        except Exception as e:
+            logger.error(f"[ros_bridge] Failed to parse /job_queue: {e}")
     
     def get_job_queue(self) -> list:
         """Returns latest queue from /job_queue topic."""
