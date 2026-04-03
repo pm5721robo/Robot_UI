@@ -31,6 +31,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List
 
+
 # ── In-memory state ───────────────────────────────────────────────────────
 _lock = threading.Lock()
 
@@ -134,11 +135,15 @@ async def list_rooms():
         return list(_rooms)
 
 @app.post("/api/update_rooms")
-async def update_rooms(rooms: list):
+async def update_rooms(request: Request):
     global _rooms
+    data = await request.json()
     with _lock:
-        _rooms = rooms
-    print(f"[cloud] Rooms updated: {len(rooms)} rooms")
+        if isinstance(data, list):
+            _rooms = data
+        else:
+            _rooms = data.get("rooms", [])
+    print(f"[cloud] Rooms updated: {len(_rooms)} rooms")
     return {"success": True}
 
 
