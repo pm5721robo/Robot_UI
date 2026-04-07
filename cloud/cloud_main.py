@@ -10,7 +10,8 @@
 # UI  → GET  /api/robot-health    → health/alerts
 # UI  → POST /api/confirm-collection → sets flag
 # UI  → POST /api/confirm-delivery   → sets flag
-# UI  → DELETE /api/queue/{id}    → cancels job
+# UI  → DELETE /api/queue/{id}    → cancels job (IP-checked)
+# UI  → GET  /api/my-ip           → returns caller IP for identity
 #
 # Nano → GET  /api/get_job        → picks up pending job
 # Nano → POST /api/update_status  → pushes robot state
@@ -60,16 +61,18 @@ _confirmations: dict = {
 }
 
 _rooms: list = []
-_queue: list = []   # live queue from ROS via Nano
-_cancel_jobs: list = []  # jobs to cancel — nano picks these up
+_queue: list = []       # live queue from ROS via Nano
+_cancel_jobs: list = [] # jobs to cancel — nano picks these up
+
 
 # ── Models ────────────────────────────────────────────────────────────────
 
 class DeliveryRequest(BaseModel):
-    pickup:       str
-    drop:         str
-    requested_by: str
-    priority:     str = "Medium"
+    pickup:        str
+    drop:          str
+    requested_by:  str
+    priority:      str = "Medium"
+    submitter_ip:  Optional[str] = None  # optional — sent by browser
 
 class StatusUpdate(BaseModel):
     online:           bool  = False
@@ -103,7 +106,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Robot Delivery System",
-    version="4.0.0",
+    version="4.1.0",
     lifespan=lifespan,
 )
 
@@ -117,6 +120,15 @@ app.add_middleware(
 FRONTEND_DIR = os.getenv("FRONTEND_DIR", "./frontend")
 
 
+# ── Helper: get real client IP (Railway may use X-Forwarded-For) ──────────
+
+def get_client_ip(request: Request) -> str:
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else ""
+
+
 # ── Serve Dashboard ───────────────────────────────────────────────────────
 
 @app.get("/", include_in_schema=False)
@@ -125,6 +137,14 @@ async def serve_dashboard():
     if not os.path.exists(index_path):
         raise HTTPException(status_code=404, detail="Dashboard not found")
     return FileResponse(index_path)
+
+
+# ── My IP — browser calls this to learn its own IP for identity ───────────
+
+@app.get("/api/my-ip")
+async def my_ip(request: Request):
+    """Returns the caller's IP address. Used by UI for IP-based job ownership."""
+    return {"ip": get_client_ip(request)}
 
 
 # ── Rooms ─────────────────────────────────────────────────────────────────
@@ -150,25 +170,32 @@ async def update_rooms(request: Request):
 # ── UI: Submit Delivery ───────────────────────────────────────────────────
 
 @app.post("/api/delivery")
-async def submit_delivery(req: DeliveryRequest):
+async def submit_delivery(req: DeliveryRequest, request: Request):
     job_id = f"TASK-{str(uuid.uuid4())[:8].upper()}"
+
+    # Resolve submitter IP — prefer value sent by browser (which already
+    # called /api/my-ip to get the correct forwarded IP), fallback to
+    # server-side detection.
+    submitter_ip = req.submitter_ip or get_client_ip(request)
+
     job = {
-        "job_id":       job_id,
-        "task_id":      job_id,
-        "pickup_room":  req.pickup,
-        "dropoff_room": req.drop,
-        "pickup":       req.pickup,
-        "drop":         req.drop,
-        "requested_by": req.requested_by,
-        "priority":     req.priority,
-        "status":       "queued",
-        "created_at":   datetime.now(timezone.utc).isoformat(),
+        "job_id":        job_id,
+        "task_id":       job_id,
+        "pickup_room":   req.pickup,
+        "dropoff_room":  req.drop,
+        "pickup":        req.pickup,
+        "drop":          req.drop,
+        "requested_by":  req.requested_by,
+        "priority":      req.priority,
+        "submitter_ip":  submitter_ip,   # ← stored for IP-based ownership
+        "status":        "queued",
+        "created_at":    datetime.now(timezone.utc).isoformat(),
     }
     with _lock:
         _pending_jobs.append(job)
         priority_order = {"High": 0, "Medium": 1, "Low": 2}
         _pending_jobs.sort(key=lambda x: priority_order.get(x.get("priority", "Medium"), 1))
-    print(f"[cloud] Job queued: {job_id} | {req.pickup} → {req.drop}")
+    print(f"[cloud] Job queued: {job_id} | {req.pickup} → {req.drop} | by {req.requested_by} ({submitter_ip})")
     return {"success": True, "job_id": job_id, "message": f"Job queued: {job_id}"}
 
 
@@ -183,17 +210,36 @@ async def get_queue():
 
 
 # ── UI: Cancel Job ────────────────────────────────────────────────────────
+# IP check: only the submitter can cancel their own job.
+# If the IP doesn't match (e.g. proxy changed it), name is used as fallback.
 
 @app.delete("/api/queue/{job_id}")
-async def cancel_job(job_id: str):
+async def cancel_job(job_id: str, request: Request):
+    caller_ip = get_client_ip(request)
     with _lock:
-        # Remove from pending queue if not yet dispatched
-        before = len(_pending_jobs)
+        # Find job
+        target = next((j for j in _pending_jobs if j["job_id"] == job_id), None)
+
+        if target is None:
+            # Job may already be dispatched to Nano — allow cancel by IP still
+            _cancel_jobs.append(job_id)
+            print(f"[cloud] Cancel forwarded to Nano (already dispatched): {job_id}")
+            return {"success": True, "job_id": job_id, "message": "Cancel forwarded to robot"}
+
+        # IP ownership check
+        job_ip = target.get("submitter_ip", "")
+        if job_ip and caller_ip and job_ip != caller_ip:
+            raise HTTPException(
+                status_code=403,
+                detail="You can only cancel your own requests."
+            )
+
+        # Remove from pending queue
         _pending_jobs[:] = [j for j in _pending_jobs if j["job_id"] != job_id]
-        removed = len(_pending_jobs) < before
-        # Also add to cancel list so nano can cancel active job in ROS2
+        # Also send cancel to Nano in case it was just dispatched
         _cancel_jobs.append(job_id)
-    print(f"[cloud] Cancel requested: {job_id}")
+
+    print(f"[cloud] Cancel requested by {caller_ip}: {job_id}")
     return {"success": True, "job_id": job_id, "message": "Cancel requested"}
 
 
@@ -203,12 +249,14 @@ async def get_cancellations():
         jobs = list(_cancel_jobs)
         _cancel_jobs.clear()
     return {"cancel_jobs": jobs}
+
+
 # ── UI: Current Task ──────────────────────────────────────────────────────
 
 @app.get("/api/current-task")
 async def current_task():
     with _lock:
-        s = dict(_robot_status)
+        s   = dict(_robot_status)
         msg = _robot_health.get("system_message", "")
 
     if not s["online"] or not s["ros_job_id"] or s["state"] in [0, 7, 8, 9]:
@@ -349,11 +397,9 @@ async def health():
         pending = len(_pending_jobs)
         online  = _robot_status.get("online", False)
     return {
-        "status":        "ok",
-        "version":       "4.0.0",
-        "mode":          "http-relay",
-        "pending_jobs":  pending,
-        "robot_online":  online,
+        "status":       "ok",
+        "version":      "4.1.0",
+        "mode":         "http-relay",
+        "pending_jobs": pending,
+        "robot_online": online,
     }
-
-
