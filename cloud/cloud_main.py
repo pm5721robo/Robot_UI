@@ -1,112 +1,212 @@
 # cloud_main.py
-# ═══════════════════════════════════════════════════════════════════
-# CLOUD BACKEND — Memory-optimized HTTP relay
-# Runs on Railway — no MQTT, no database, no extra dependencies
+# ═══════════════════════════════════════════════════════════════════════════
+# CLOUD BACKEND v5.0 — PostgreSQL-backed job storage
+# Runs on Railway with Postgres addon
 #
-# UI  → POST /api/delivery        → stores job in memory
-# UI  → GET  /api/queue           → reads queue
-# UI  → GET  /api/current-task    → reads robot status
-# UI  → GET  /api/robot-status    → online/offline
-# UI  → GET  /api/robot-health    → health/alerts
-# UI  → POST /api/confirm-collection → sets flag
-# UI  → POST /api/confirm-delivery   → sets flag
-# UI  → DELETE /api/queue/{id}    → cancels job (IP-checked)
-# UI  → GET  /api/my-ip           → returns caller IP for identity
+# Single source of truth for jobs. Robot is stateless (in-memory only).
 #
-# Nano → GET  /api/get_job        → picks up pending job
-# Nano → POST /api/update_status  → pushes robot state
-# Nano → GET  /api/get_confirmation → picks up confirm flags
-# Nano → POST /api/update_rooms   → pushes room list on startup
-# Nano → POST /api/update_queue   → pushes live queue from ROS
-# ═══════════════════════════════════════════════════════════════════
+# UI Endpoints:
+#   POST /api/delivery           → creates job in DB (status: PENDING)
+#   GET  /api/queue              → returns active jobs from DB
+#   GET  /api/current-task       → returns current active job
+#   DELETE /api/queue/{id}       → marks job CANCELLED
+#   POST /api/confirm-collection → sets confirmation flag
+#   POST /api/confirm-delivery   → sets confirmation flag
+#   GET  /api/robot-status       → online/offline based on heartbeat
+#   GET  /api/robot-health       → cached health data
+#   GET  /api/rooms              → room list
+#   GET  /api/my-ip              → caller IP for ownership
+#
+# Nano Endpoints:
+#   GET  /api/nano/pending       → returns PENDING jobs for dispatch
+#   POST /api/nano/accept/{id}   → marks job ACCEPTED (ROS took it)
+#   POST /api/nano/status/{id}   → updates job state from ROS
+#   POST /api/nano/heartbeat     → keeps robot online + pushes health
+#   GET  /api/nano/confirmations → picks up confirmation flags
+#   GET  /api/nano/cancellations → picks up cancel requests
+#   POST /api/nano/rooms         → pushes room list on startup
+# ═══════════════════════════════════════════════════════════════════════════
 
 import os
 import uuid
-import threading
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+from typing import Optional, List
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional, List
+import asyncpg
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Database
+# ═══════════════════════════════════════════════════════════════════════════
+
+DATABASE_URL = os.getenv("DATABASE_URL")
+db_pool: Optional[asyncpg.Pool] = None
 
 
-# ── In-memory state ───────────────────────────────────────────────────────
-_lock = threading.Lock()
+async def init_db():
+    """Initialize database connection pool and create tables."""
+    global db_pool
 
-_pending_jobs: list = []   # jobs waiting for Nano to pick up
+    if not DATABASE_URL:
+        print("[cloud] WARNING: DATABASE_URL not set — running in memory-only mode")
+        return
 
-_robot_status: dict = {
-    "online":     False,
-    "state":      0,
-    "state_name": "Idle",
-    "ros_job_id": "",
-    "pickup":     "",
-    "drop":       "",
-}
+    # Railway uses postgres:// but asyncpg needs postgresql://
+    db_url = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-_robot_health: dict = {
-    "cpu_percent":      0.0,
-    "memory_used_mb":   0.0,
-    "memory_total_mb":  0.0,
+    db_pool = await asyncpg.create_pool(db_url, min_size=2, max_size=10)
+
+    async with db_pool.acquire() as conn:
+        # Jobs table
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS jobs (
+                id TEXT PRIMARY KEY,
+                pickup_room TEXT NOT NULL,
+                dropoff_room TEXT NOT NULL,
+                requested_by TEXT,
+                priority TEXT DEFAULT 'Medium',
+                submitter_ip TEXT,
+                status TEXT DEFAULT 'PENDING',
+                state INTEGER DEFAULT 0,
+                state_name TEXT DEFAULT 'Queued',
+                message TEXT DEFAULT '',
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        """)
+
+        # Robot status table (single row)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS robot_status (
+                id INTEGER PRIMARY KEY DEFAULT 1,
+                online BOOLEAN DEFAULT FALSE,
+                last_heartbeat TIMESTAMPTZ,
+                current_job_id TEXT,
+                cpu_percent REAL DEFAULT 0,
+                memory_used_mb REAL DEFAULT 0,
+                memory_total_mb REAL DEFAULT 0,
+                supervisor_state INTEGER DEFAULT 0,
+                system_message TEXT DEFAULT ''
+            )
+        """)
+
+        # Initialize robot status row if not exists
+        await conn.execute("""
+            INSERT INTO robot_status (id) VALUES (1) ON CONFLICT (id) DO NOTHING
+        """)
+
+        # Rooms table
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS rooms (
+                id TEXT PRIMARY KEY,
+                description TEXT,
+                coordinates JSONB,
+                tile INTEGER
+            )
+        """)
+
+        # Confirmations table (flags for nano to pick up)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS confirmations (
+                id INTEGER PRIMARY KEY DEFAULT 1,
+                confirm_collection BOOLEAN DEFAULT FALSE,
+                confirm_delivery BOOLEAN DEFAULT FALSE
+            )
+        """)
+        await conn.execute("""
+            INSERT INTO confirmations (id) VALUES (1) ON CONFLICT (id) DO NOTHING
+        """)
+
+        # Cancellations table (job IDs to cancel)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS cancellations (
+                job_id TEXT PRIMARY KEY,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        """)
+
+    print("[cloud] Database initialized ✓")
+
+
+async def close_db():
+    global db_pool
+    if db_pool:
+        await db_pool.close()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Fallback in-memory storage (when DATABASE_URL not set)
+# ═══════════════════════════════════════════════════════════════════════════
+
+_mem_jobs = {}
+_mem_robot = {
+    "online": False,
+    "last_heartbeat": None,
+    "current_job_id": "",
+    "cpu_percent": 0.0,
+    "memory_used_mb": 0.0,
+    "memory_total_mb": 0.0,
     "supervisor_state": 0,
-    "system_message":   "",
+    "system_message": "",
 }
+_mem_rooms = []
+_mem_confirmations = {"confirm_collection": False, "confirm_delivery": False}
+_mem_cancellations = []
 
-_confirmations: dict = {
-    "confirm_collection": False,
-    "confirm_delivery":   False,
-}
+# ═══════════════════════════════════════════════════════════════════════════
+# Models
+# ═══════════════════════════════════════════════════════════════════════════
 
-_rooms: list = []
-_queue: list = []       # live queue from ROS via Nano
-_cancel_jobs: list = [] # jobs to cancel — nano picks these up
-
-
-# ── Models ────────────────────────────────────────────────────────────────
 
 class DeliveryRequest(BaseModel):
-    pickup:        str
-    drop:          str
-    requested_by:  str
-    priority:      str = "Medium"
-    submitter_ip:  Optional[str] = None  # optional — sent by browser
-
-class StatusUpdate(BaseModel):
-    online:           bool  = False
-    state:            int   = 0
-    state_name:       str   = "Idle"
-    ros_job_id:       str   = ""
-    pickup:           str   = ""
-    drop:             str   = ""
-    cpu_percent:      float = 0.0
-    memory_used_mb:   float = 0.0
-    memory_total_mb:  float = 0.0
-    supervisor_state: int   = 0
-    system_message:   str   = ""
-
-class QueueUpdate(BaseModel):
-    jobs:  list = []
-    count: int  = 0
+    pickup: str
+    drop: str
+    requested_by: str
+    priority: str = "Medium"
+    submitter_ip: Optional[str] = None
 
 
-# ── Lifespan ──────────────────────────────────────────────────────────────
+class JobStatusUpdate(BaseModel):
+    state: int
+    state_name: str
+    message: str = ""
+
+
+class HeartbeatData(BaseModel):
+    current_job_id: str = ""
+    cpu_percent: float = 0.0
+    memory_used_mb: float = 0.0
+    memory_total_mb: float = 0.0
+    supervisor_state: int = 0
+    system_message: str = ""
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Lifespan
+# ═══════════════════════════════════════════════════════════════════════════
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("[cloud] Robot Delivery System — HTTP relay starting...")
+    print("[cloud] Robot Delivery System v5.0 starting...")
+    await init_db()
     print("[cloud] Ready ✓")
     yield
-    print("[cloud] Shutting down...")
+    await close_db()
+    print("[cloud] Shutdown complete")
 
 
-# ── App ───────────────────────────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════════════
+# App
+# ═══════════════════════════════════════════════════════════════════════════
 
 app = FastAPI(
     title="Robot Delivery System",
-    version="4.1.0",
+    version="5.0.0",
     lifespan=lifespan,
 )
 
@@ -118,9 +218,12 @@ app.add_middleware(
 )
 
 FRONTEND_DIR = os.getenv("FRONTEND_DIR", "./frontend")
+HEARTBEAT_TIMEOUT = 10  # seconds — robot offline if no heartbeat
 
+# ═══════════════════════════════════════════════════════════════════════════
+# Helpers
+# ═══════════════════════════════════════════════════════════════════════════
 
-# ── Helper: get real client IP (Railway may use X-Forwarded-For) ──────────
 
 def get_client_ip(request: Request) -> str:
     forwarded = request.headers.get("X-Forwarded-For")
@@ -129,7 +232,22 @@ def get_client_ip(request: Request) -> str:
     return request.client.host if request.client else ""
 
 
-# ── Serve Dashboard ───────────────────────────────────────────────────────
+def is_robot_online(last_heartbeat) -> bool:
+    if not last_heartbeat:
+        return False
+    if isinstance(last_heartbeat, str):
+        last_heartbeat = datetime.fromisoformat(last_heartbeat.replace("Z", "+00:00"))
+    now = datetime.now(timezone.utc)
+    return (now - last_heartbeat).total_seconds() < HEARTBEAT_TIMEOUT
+
+
+# Priority sort order
+PRIORITY_ORDER = {"High": 0, "Medium": 1, "Low": 2}
+
+# ═══════════════════════════════════════════════════════════════════════════
+# UI Endpoints
+# ═══════════════════════════════════════════════════════════════════════════
+
 
 @app.get("/", include_in_schema=False)
 async def serve_dashboard():
@@ -139,267 +257,613 @@ async def serve_dashboard():
     return FileResponse(index_path)
 
 
-# ── My IP — browser calls this to learn its own IP for identity ───────────
-
 @app.get("/api/my-ip")
 async def my_ip(request: Request):
-    """Returns the caller's IP address. Used by UI for IP-based job ownership."""
     return {"ip": get_client_ip(request)}
 
 
-# ── Rooms ─────────────────────────────────────────────────────────────────
+# ── Rooms ────────────────────────────────────────────────────────────────────
+
 
 @app.get("/api/rooms")
 async def list_rooms():
-    with _lock:
-        return list(_rooms)
-
-@app.post("/api/update_rooms")
-async def update_rooms(request: Request):
-    global _rooms
-    data = await request.json()
-    with _lock:
-        if isinstance(data, list):
-            _rooms = data
-        else:
-            _rooms = data.get("rooms", [])
-    print(f"[cloud] Rooms updated: {len(_rooms)} rooms")
-    return {"success": True}
+    if db_pool:
+        async with db_pool.acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT id, description, coordinates, tile FROM rooms ORDER BY id"
+            )
+            return [dict(r) for r in rows]
+    return _mem_rooms
 
 
-# ── UI: Submit Delivery ───────────────────────────────────────────────────
+# ── Submit Delivery ──────────────────────────────────────────────────────────
+
 
 @app.post("/api/delivery")
 async def submit_delivery(req: DeliveryRequest, request: Request):
-    job_id = f"TASK-{str(uuid.uuid4())[:8].upper()}"
-
-    # Resolve submitter IP — prefer value sent by browser (which already
-    # called /api/my-ip to get the correct forwarded IP), fallback to
-    # server-side detection.
+    job_id = f"JOB-{str(uuid.uuid4())[:8].upper()}"
     submitter_ip = req.submitter_ip or get_client_ip(request)
+    now = datetime.now(timezone.utc)
 
-    job = {
-        "job_id":        job_id,
-        "task_id":       job_id,
-        "pickup_room":   req.pickup,
-        "dropoff_room":  req.drop,
-        "pickup":        req.pickup,
-        "drop":          req.drop,
-        "requested_by":  req.requested_by,
-        "priority":      req.priority,
-        "submitter_ip":  submitter_ip,   # ← stored for IP-based ownership
-        "status":        "queued",
-        "created_at":    datetime.now(timezone.utc).isoformat(),
-    }
-    with _lock:
-        _pending_jobs.append(job)
-        priority_order = {"High": 0, "Medium": 1, "Low": 2}
-        _pending_jobs.sort(key=lambda x: priority_order.get(x.get("priority", "Medium"), 1))
-    print(f"[cloud] Job queued: {job_id} | {req.pickup} → {req.drop} | by {req.requested_by} ({submitter_ip})")
+    if db_pool:
+        async with db_pool.acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO jobs (id, pickup_room, dropoff_room, requested_by, priority, submitter_ip, status, created_at, updated_at)
+                VALUES ($1, $2, $3, $4, $5, $6, 'PENDING', $7, $7)
+            """,
+                job_id,
+                req.pickup,
+                req.drop,
+                req.requested_by,
+                req.priority,
+                submitter_ip,
+                now,
+            )
+    else:
+        _mem_jobs[job_id] = {
+            "id": job_id,
+            "pickup_room": req.pickup,
+            "dropoff_room": req.drop,
+            "requested_by": req.requested_by,
+            "priority": req.priority,
+            "submitter_ip": submitter_ip,
+            "status": "PENDING",
+            "state": 0,
+            "state_name": "Queued",
+            "message": "",
+            "created_at": now.isoformat(),
+            "updated_at": now.isoformat(),
+        }
+
+    print(
+        f"[cloud] Job created: {job_id} | {req.pickup} → {req.drop} | by {req.requested_by}"
+    )
     return {"success": True, "job_id": job_id, "message": f"Job queued: {job_id}"}
 
 
-# ── UI: Get Queue ─────────────────────────────────────────────────────────
+# ── Get Queue ────────────────────────────────────────────────────────────────
+
 
 @app.get("/api/queue")
 async def get_queue():
-    with _lock:
-        # Show ROS live queue if available, else pending jobs
-        jobs = list(_queue) if _queue else list(_pending_jobs)
+    if db_pool:
+        async with db_pool.acquire() as conn:
+            rows = await conn.fetch("""
+                SELECT id as job_id, id as task_id, pickup_room, dropoff_room,
+                       pickup_room as pickup, dropoff_room as drop,
+                       requested_by, priority, status, state, state_name, message,
+                       created_at, submitter_ip
+                FROM jobs
+                WHERE status NOT IN ('COMPLETE', 'CANCELLED', 'FAILED')
+                ORDER BY 
+                    CASE priority WHEN 'High' THEN 0 WHEN 'Medium' THEN 1 ELSE 2 END,
+                    created_at ASC
+            """)
+            jobs = [dict(r) for r in rows]
+    else:
+        jobs = [
+            {
+                **j,
+                "job_id": j["id"],
+                "task_id": j["id"],
+                "pickup": j["pickup_room"],
+                "drop": j["dropoff_room"],
+            }
+            for j in _mem_jobs.values()
+            if j["status"] not in ("COMPLETE", "CANCELLED", "FAILED")
+        ]
+        jobs.sort(key=lambda x: (PRIORITY_ORDER.get(x["priority"], 1), x["created_at"]))
+
     return {"queue_depth": 10, "count": len(jobs), "tasks": jobs}
 
 
-# ── UI: Cancel Job ────────────────────────────────────────────────────────
-# IP check: only the submitter can cancel their own job.
-# If the IP doesn't match (e.g. proxy changed it), name is used as fallback.
+# ── Cancel Job ───────────────────────────────────────────────────────────────
+
 
 @app.delete("/api/queue/{job_id}")
 async def cancel_job(job_id: str, request: Request):
     caller_ip = get_client_ip(request)
-    with _lock:
-        # Find job
-        target = next((j for j in _pending_jobs if j["job_id"] == job_id), None)
 
-        if target is None:
-            # Job may already be dispatched to Nano — allow cancel by IP still
-            _cancel_jobs.append(job_id)
-            print(f"[cloud] Cancel forwarded to Nano (already dispatched): {job_id}")
-            return {"success": True, "job_id": job_id, "message": "Cancel forwarded to robot"}
-
-        # IP ownership check
-        job_ip = target.get("submitter_ip", "")
-        if job_ip and caller_ip and job_ip != caller_ip:
-            raise HTTPException(
-                status_code=403,
-                detail="You can only cancel your own requests."
+    if db_pool:
+        async with db_pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT submitter_ip, status FROM jobs WHERE id = $1", job_id
             )
 
-        # Remove from pending queue
-        _pending_jobs[:] = [j for j in _pending_jobs if j["job_id"] != job_id]
-        # Also send cancel to Nano in case it was just dispatched
-        _cancel_jobs.append(job_id)
+            if not row:
+                raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
 
-    print(f"[cloud] Cancel requested by {caller_ip}: {job_id}")
+            # IP ownership check
+            job_ip = row["submitter_ip"] or ""
+            if job_ip and caller_ip and job_ip != caller_ip:
+                raise HTTPException(
+                    status_code=403, detail="You can only cancel your own requests."
+                )
+
+            # If PENDING, just mark cancelled. If already dispatched, add to cancellations for nano.
+            if row["status"] == "PENDING":
+                await conn.execute(
+                    """
+                    UPDATE jobs SET status = 'CANCELLED', state = 9, state_name = 'Cancelled', updated_at = NOW()
+                    WHERE id = $1
+                """,
+                    job_id,
+                )
+            else:
+                # Job already dispatched — add to cancellations table for nano to pick up
+                await conn.execute(
+                    """
+                    INSERT INTO cancellations (job_id) VALUES ($1) ON CONFLICT DO NOTHING
+                """,
+                    job_id,
+                )
+    else:
+        if job_id not in _mem_jobs:
+            raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+        job = _mem_jobs[job_id]
+        job_ip = job.get("submitter_ip", "")
+        if job_ip and caller_ip and job_ip != caller_ip:
+            raise HTTPException(
+                status_code=403, detail="You can only cancel your own requests."
+            )
+        if job["status"] == "PENDING":
+            job["status"] = "CANCELLED"
+            job["state"] = 9
+            job["state_name"] = "Cancelled"
+        else:
+            _mem_cancellations.append(job_id)
+
+    print(f"[cloud] Cancel requested: {job_id} by {caller_ip}")
     return {"success": True, "job_id": job_id, "message": "Cancel requested"}
 
 
-@app.get("/api/get_cancellations")
-async def get_cancellations():
-    with _lock:
-        jobs = list(_cancel_jobs)
-        _cancel_jobs.clear()
-    return {"cancel_jobs": jobs}
+# ── Current Task ─────────────────────────────────────────────────────────────
 
-
-# ── UI: Current Task ──────────────────────────────────────────────────────
 
 @app.get("/api/current-task")
 async def current_task():
-    with _lock:
-        s   = dict(_robot_status)
-        msg = _robot_health.get("system_message", "")
+    if db_pool:
+        async with db_pool.acquire() as conn:
+            robot = await conn.fetchrow("SELECT * FROM robot_status WHERE id = 1")
+            online = is_robot_online(robot["last_heartbeat"]) if robot else False
 
-    if not s["online"] or not s["ros_job_id"] or s["state"] in [0, 7, 8, 9]:
-        return {"status": "idle", "task": None}
+            if not online or not robot["current_job_id"]:
+                return {"status": "idle", "task": None}
 
-    return {
-        "status": "active",
-        "task": {
-            "ros_job_id": s["ros_job_id"],
-            "pickup":     s["pickup"],
-            "drop":       s["drop"],
-            "state":      s["state"],
-            "state_name": s["state_name"],
-            "status":     "in_progress",
-            "message":    msg,
+            job = await conn.fetchrow(
+                "SELECT * FROM jobs WHERE id = $1", robot["current_job_id"]
+            )
+            if not job or job["state"] in (0, 7, 8, 9):
+                return {"status": "idle", "task": None}
+
+            return {
+                "status": "active",
+                "task": {
+                    "ros_job_id": job["id"],
+                    "task_id": job["id"],
+                    "pickup": job["pickup_room"],
+                    "drop": job["dropoff_room"],
+                    "state": job["state"],
+                    "state_name": job["state_name"],
+                    "status": "in_progress",
+                    "message": job["message"] or robot["system_message"] or "",
+                },
+            }
+    else:
+        if not _mem_robot.get("current_job_id"):
+            return {"status": "idle", "task": None}
+        job = _mem_jobs.get(_mem_robot["current_job_id"])
+        if not job or job["state"] in (0, 7, 8, 9):
+            return {"status": "idle", "task": None}
+        return {
+            "status": "active",
+            "task": {
+                "ros_job_id": job["id"],
+                "task_id": job["id"],
+                "pickup": job["pickup_room"],
+                "drop": job["dropoff_room"],
+                "state": job["state"],
+                "state_name": job["state_name"],
+                "status": "in_progress",
+                "message": job.get("message", ""),
+            },
         }
-    }
 
 
-# ── UI: Robot Status ──────────────────────────────────────────────────────
+# ── Robot Status ─────────────────────────────────────────────────────────────
+
 
 @app.get("/api/robot-status")
 async def robot_status():
-    with _lock:
-        online = _robot_status.get("online", False)
+    if db_pool:
+        async with db_pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT last_heartbeat FROM robot_status WHERE id = 1"
+            )
+            online = is_robot_online(row["last_heartbeat"]) if row else False
+    else:
+        online = is_robot_online(_mem_robot.get("last_heartbeat"))
+
     return {"online": online, "message": "Robot Online" if online else "Connecting..."}
 
 
-# ── UI: Robot Health ──────────────────────────────────────────────────────
+# ── Robot Health ─────────────────────────────────────────────────────────────
+
 
 @app.get("/api/robot-health")
 async def robot_health():
-    with _lock:
-        online = _robot_status.get("online", False)
-        h = dict(_robot_health)
-
-    if not online:
-        return {"online": False, "message": "Robot offline"}
-
-    return {
-        "online": True,
-        "health": {
-            "cpu_percent":        h.get("cpu_percent", 0),
-            "memory_used_mb":     h.get("memory_used_mb", 0),
-            "memory_total_mb":    h.get("memory_total_mb", 0),
-            "system_state":       _robot_status.get("state", 0),
-            "supervisor_state":   h.get("supervisor_state", 0),
-            "system_message":     h.get("system_message", ""),
-            "autonomous_enabled": True,
+    if db_pool:
+        async with db_pool.acquire() as conn:
+            row = await conn.fetchrow("SELECT * FROM robot_status WHERE id = 1")
+            if not row:
+                return {"online": False, "message": "Robot offline"}
+            online = is_robot_online(row["last_heartbeat"])
+            if not online:
+                return {"online": False, "message": "Robot offline"}
+            return {
+                "online": True,
+                "health": {
+                    "cpu_percent": row["cpu_percent"],
+                    "memory_used_mb": row["memory_used_mb"],
+                    "memory_total_mb": row["memory_total_mb"],
+                    "supervisor_state": row["supervisor_state"],
+                    "system_message": row["system_message"],
+                    "autonomous_enabled": True,
+                },
+            }
+    else:
+        online = is_robot_online(_mem_robot.get("last_heartbeat"))
+        if not online:
+            return {"online": False, "message": "Robot offline"}
+        return {
+            "online": True,
+            "health": {
+                "cpu_percent": _mem_robot["cpu_percent"],
+                "memory_used_mb": _mem_robot["memory_used_mb"],
+                "memory_total_mb": _mem_robot["memory_total_mb"],
+                "supervisor_state": _mem_robot["supervisor_state"],
+                "system_message": _mem_robot["system_message"],
+                "autonomous_enabled": True,
+            },
         }
-    }
 
 
-# ── UI: Confirm Collection ────────────────────────────────────────────────
+# ── Confirm Collection ───────────────────────────────────────────────────────
+
 
 @app.post("/api/confirm-collection")
 async def confirm_collection():
-    with _lock:
-        _confirmations["confirm_collection"] = True
-        _confirmations["confirm_delivery"]   = False
-    print("[cloud] Collect flag set")
+    if db_pool:
+        async with db_pool.acquire() as conn:
+            await conn.execute("""
+                UPDATE confirmations SET confirm_collection = TRUE, confirm_delivery = FALSE WHERE id = 1
+            """)
+    else:
+        _mem_confirmations["confirm_collection"] = True
+        _mem_confirmations["confirm_delivery"] = False
+
+    print("[cloud] Collection confirmation flag set")
     return {"success": True, "message": "Collection confirmed"}
 
 
-# ── UI: Confirm Delivery ──────────────────────────────────────────────────
+# ── Confirm Delivery ─────────────────────────────────────────────────────────
+
 
 @app.post("/api/confirm-delivery")
 async def confirm_delivery():
-    with _lock:
-        _confirmations["confirm_delivery"]   = True
-        _confirmations["confirm_collection"] = False
-    print("[cloud] Delivery flag set")
+    if db_pool:
+        async with db_pool.acquire() as conn:
+            await conn.execute("""
+                UPDATE confirmations SET confirm_delivery = TRUE, confirm_collection = FALSE WHERE id = 1
+            """)
+    else:
+        _mem_confirmations["confirm_delivery"] = True
+        _mem_confirmations["confirm_collection"] = False
+
+    print("[cloud] Delivery confirmation flag set")
     return {"success": True, "message": "Delivery confirmed"}
 
 
-# ── Nano: Get Job ─────────────────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════════════
+# Nano Endpoints
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@app.get("/api/nano/pending")
+async def get_pending_jobs():
+    """Returns all PENDING jobs for nano to dispatch to ROS."""
+    if db_pool:
+        async with db_pool.acquire() as conn:
+            rows = await conn.fetch("""
+                SELECT id as job_id, pickup_room, dropoff_room, priority, requested_by
+                FROM jobs
+                WHERE status = 'PENDING'
+                ORDER BY 
+                    CASE priority WHEN 'High' THEN 0 WHEN 'Medium' THEN 1 ELSE 2 END,
+                    created_at ASC
+            """)
+            return {"jobs": [dict(r) for r in rows]}
+    else:
+        jobs = [
+            {
+                "job_id": j["id"],
+                "pickup_room": j["pickup_room"],
+                "dropoff_room": j["dropoff_room"],
+                "priority": j["priority"],
+                "requested_by": j["requested_by"],
+            }
+            for j in _mem_jobs.values()
+            if j["status"] == "PENDING"
+        ]
+        jobs.sort(key=lambda x: (PRIORITY_ORDER.get(x["priority"], 1),))
+        return {"jobs": jobs}
+
+
+@app.post("/api/nano/accept/{job_id}")
+async def accept_job(job_id: str):
+    """Called when ROS accepts a job."""
+    if db_pool:
+        async with db_pool.acquire() as conn:
+            await conn.execute(
+                """
+                UPDATE jobs SET status = 'ACCEPTED', state = 1, state_name = 'Preparing Navigation', updated_at = NOW()
+                WHERE id = $1
+            """,
+                job_id,
+            )
+    else:
+        if job_id in _mem_jobs:
+            _mem_jobs[job_id]["status"] = "ACCEPTED"
+            _mem_jobs[job_id]["state"] = 1
+            _mem_jobs[job_id]["state_name"] = "Preparing Navigation"
+
+    print(f"[cloud] Job accepted by ROS: {job_id}")
+    return {"success": True}
+
+
+@app.post("/api/nano/status/{job_id}")
+async def update_job_status(job_id: str, update: JobStatusUpdate):
+    """Called when ROS publishes job status changes."""
+    # Map state to status
+    status = "IN_PROGRESS"
+    if update.state == 7:
+        status = "COMPLETE"
+    elif update.state == 8:
+        status = "FAILED"
+    elif update.state == 9:
+        status = "CANCELLED"
+
+    if db_pool:
+        async with db_pool.acquire() as conn:
+            await conn.execute(
+                """
+                UPDATE jobs SET status = $1, state = $2, state_name = $3, message = $4, updated_at = NOW()
+                WHERE id = $5
+            """,
+                status,
+                update.state,
+                update.state_name,
+                update.message,
+                job_id,
+            )
+    else:
+        if job_id in _mem_jobs:
+            _mem_jobs[job_id]["status"] = status
+            _mem_jobs[job_id]["state"] = update.state
+            _mem_jobs[job_id]["state_name"] = update.state_name
+            _mem_jobs[job_id]["message"] = update.message
+
+    return {"success": True}
+
+
+@app.post("/api/nano/heartbeat")
+async def heartbeat(data: HeartbeatData):
+    """Called every poll cycle to keep robot online and update health."""
+    now = datetime.now(timezone.utc)
+
+    if db_pool:
+        async with db_pool.acquire() as conn:
+            await conn.execute(
+                """
+                UPDATE robot_status SET 
+                    online = TRUE,
+                    last_heartbeat = $1,
+                    current_job_id = $2,
+                    cpu_percent = $3,
+                    memory_used_mb = $4,
+                    memory_total_mb = $5,
+                    supervisor_state = $6,
+                    system_message = $7
+                WHERE id = 1
+            """,
+                now,
+                data.current_job_id,
+                data.cpu_percent,
+                data.memory_used_mb,
+                data.memory_total_mb,
+                data.supervisor_state,
+                data.system_message,
+            )
+    else:
+        _mem_robot.update(
+            {
+                "online": True,
+                "last_heartbeat": now,
+                "current_job_id": data.current_job_id,
+                "cpu_percent": data.cpu_percent,
+                "memory_used_mb": data.memory_used_mb,
+                "memory_total_mb": data.memory_total_mb,
+                "supervisor_state": data.supervisor_state,
+                "system_message": data.system_message,
+            }
+        )
+
+    return {"success": True}
+
+
+@app.get("/api/nano/confirmations")
+async def get_confirmations():
+    """Returns and clears confirmation flags."""
+    if db_pool:
+        async with db_pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT confirm_collection, confirm_delivery FROM confirmations WHERE id = 1"
+            )
+            result = {
+                "confirm_collection": row["confirm_collection"],
+                "confirm_delivery": row["confirm_delivery"],
+            }
+            # Clear flags
+            await conn.execute(
+                "UPDATE confirmations SET confirm_collection = FALSE, confirm_delivery = FALSE WHERE id = 1"
+            )
+            return result
+    else:
+        result = dict(_mem_confirmations)
+        _mem_confirmations["confirm_collection"] = False
+        _mem_confirmations["confirm_delivery"] = False
+        return result
+
+
+@app.get("/api/nano/cancellations")
+async def get_cancellations():
+    """Returns and clears cancellation requests."""
+    if db_pool:
+        async with db_pool.acquire() as conn:
+            rows = await conn.fetch("SELECT job_id FROM cancellations")
+            job_ids = [r["job_id"] for r in rows]
+            if job_ids:
+                await conn.execute("DELETE FROM cancellations")
+            return {"cancel_jobs": job_ids}
+    else:
+        result = list(_mem_cancellations)
+        _mem_cancellations.clear()
+        return {"cancel_jobs": result}
+
+
+@app.post("/api/nano/rooms")
+async def update_rooms(request: Request):
+    """Nano pushes room list on startup."""
+    data = await request.json()
+    rooms = data if isinstance(data, list) else data.get("rooms", [])
+
+    if db_pool:
+        async with db_pool.acquire() as conn:
+            await conn.execute("DELETE FROM rooms")
+            for room in rooms:
+                await conn.execute(
+                    """
+                    INSERT INTO rooms (id, description, coordinates, tile)
+                    VALUES ($1, $2, $3, $4)
+                """,
+                    room["id"],
+                    room.get("description", ""),
+                    str(room.get("coordinates", [])),
+                    room.get("tile", 0),
+                )
+    else:
+        _mem_rooms.clear()
+        _mem_rooms.extend(rooms)
+
+    print(f"[cloud] Rooms updated: {len(rooms)} rooms")
+    return {"success": True}
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Legacy endpoints (backward compatibility)
+# ═══════════════════════════════════════════════════════════════════════════
+
 
 @app.get("/api/get_job")
-async def get_job():
-    with _lock:
-        if not _pending_jobs:
-            return {"job": None}
-        job = _pending_jobs.pop(0)
-    print(f"[cloud] Job dispatched to Nano: {job['job_id']}")
-    return {"job": job}
+async def legacy_get_job():
+    """Legacy endpoint — redirects to new flow."""
+    result = await get_pending_jobs()
+    jobs = result.get("jobs", [])
+    if not jobs:
+        return {"job": None}
+    return {"job": jobs[0]}
 
-
-# ── Nano: Update Status ───────────────────────────────────────────────────
 
 @app.post("/api/update_status")
-async def update_status(status: StatusUpdate):
-    with _lock:
-        _robot_status.update({
-            "online":     status.online,
-            "state":      status.state,
-            "state_name": status.state_name,
-            "ros_job_id": status.ros_job_id,
-            "pickup":     status.pickup,
-            "drop":       status.drop,
-        })
-        _robot_health.update({
-            "cpu_percent":      status.cpu_percent,
-            "memory_used_mb":   status.memory_used_mb,
-            "memory_total_mb":  status.memory_total_mb,
-            "supervisor_state": status.supervisor_state,
-            "system_message":   status.system_message,
-        })
+async def legacy_update_status(request: Request):
+    """Legacy endpoint — maps to heartbeat + job status."""
+    data = await request.json()
+
+    # Update heartbeat
+    hb = HeartbeatData(
+        current_job_id=data.get("ros_job_id", ""),
+        cpu_percent=data.get("cpu_percent", 0),
+        memory_used_mb=data.get("memory_used_mb", 0),
+        memory_total_mb=data.get("memory_total_mb", 0),
+        supervisor_state=data.get("supervisor_state", 0),
+        system_message=data.get("system_message", ""),
+    )
+    await heartbeat(hb)
+
+    # Update job status if we have a job
+    job_id = data.get("ros_job_id")
+    if job_id:
+        update = JobStatusUpdate(
+            state=data.get("state", 0),
+            state_name=data.get("state_name", ""),
+            message=data.get("system_message", ""),
+        )
+        await update_job_status(job_id, update)
+
     return {"success": True}
 
-
-# ── Nano: Get Confirmation ────────────────────────────────────────────────
 
 @app.get("/api/get_confirmation")
-async def get_confirmation():
-    with _lock:
-        result = dict(_confirmations)
-        # One-shot — clear after Nano picks up
-        _confirmations["confirm_collection"] = False
-        _confirmations["confirm_delivery"]   = False
-    return result
+async def legacy_get_confirmation():
+    """Legacy endpoint."""
+    return await get_confirmations()
 
 
-# ── Nano: Update Queue ────────────────────────────────────────────────────
+@app.get("/api/get_cancellations")
+async def legacy_get_cancellations():
+    """Legacy endpoint."""
+    return await get_cancellations()
+
+
+@app.post("/api/update_rooms")
+async def legacy_update_rooms(request: Request):
+    """Legacy endpoint."""
+    return await update_rooms(request)
+
 
 @app.post("/api/update_queue")
-async def update_queue(data: QueueUpdate):
-    global _queue
-    with _lock:
-        _queue = data.jobs
+async def legacy_update_queue(request: Request):
+    """Legacy endpoint — no longer needed (cloud is source of truth)."""
     return {"success": True}
 
 
-# ── Health Check ──────────────────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════════════
+# Health Check
+# ═══════════════════════════════════════════════════════════════════════════
+
 
 @app.get("/api/health")
 async def health():
-    with _lock:
-        pending = len(_pending_jobs)
-        online  = _robot_status.get("online", False)
+    db_connected = db_pool is not None
+
+    if db_pool:
+        async with db_pool.acquire() as conn:
+            pending = await conn.fetchval(
+                "SELECT COUNT(*) FROM jobs WHERE status = 'PENDING'"
+            )
+            row = await conn.fetchrow(
+                "SELECT last_heartbeat FROM robot_status WHERE id = 1"
+            )
+            online = is_robot_online(row["last_heartbeat"]) if row else False
+    else:
+        pending = len([j for j in _mem_jobs.values() if j["status"] == "PENDING"])
+        online = is_robot_online(_mem_robot.get("last_heartbeat"))
+
     return {
-        "status":       "ok",
-        "version":      "4.1.0",
-        "mode":         "http-relay",
+        "status": "ok",
+        "version": "5.0.0",
+        "database": "connected" if db_connected else "memory-only",
         "pending_jobs": pending,
         "robot_online": online,
     }

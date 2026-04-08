@@ -1,7 +1,0 @@
-# requirements.txt — Railway deployment
-# HTTP only — no MQTT dependency
-fastapi==0.115.0
-uvicorn==0.30.6
-pydantic==2.6.4
-python-multipart==0.0.9
-requests==2.31.0
