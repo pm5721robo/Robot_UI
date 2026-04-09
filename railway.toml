@@ -10,7 +10,7 @@ healthcheckPath = "/api/health"
 sleepApplication = true
 useLegacyStacker = false
 ipv6EgressEnabled = false
-multiRegionConfig = {"asia-southeast1" = {numReplicas = 1}}
+multiRegionConfig = {"us-west2":{"numReplicas":1}}
 restartPolicyType = "ON_FAILURE"
 healthcheckTimeout = 30
 restartPolicyMaxRetries = 3
