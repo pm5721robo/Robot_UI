@@ -1,11 +1,10 @@
 [build]
 builder = "NIXPACKS"
-buildCommand = "cd cloud && pip install -r requirements.txt"
 
 [deploy]
 runtime = "V2"
 numReplicas = 1
-startCommand = "cd cloud && uvicorn main:app --host 0.0.0.0 --port $PORT"
+startCommand = "cd cloud && /app/venv/bin/uvicorn main:app --host 0.0.0.0 --port $PORT"
 healthcheckPath = "/api/health"
 sleepApplication = true
 useLegacyStacker = false

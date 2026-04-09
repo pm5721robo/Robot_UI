@@ -1,2 +1,5 @@
 [phases.setup]
-nixPkgs = ["python311", "python311Packages.pip"]
+nixPkgs = ["python311"]
+
+[phases.build]
+cmds = ["python3 -m venv /app/venv && /app/venv/bin/pip install -r cloud/requirements.txt"]
