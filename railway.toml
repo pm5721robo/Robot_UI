@@ -1,6 +1,6 @@
 [build]
 builder = "NIXPACKS"
-buildCommand = "cd cloud && python -m pip install -r requirements.txt"
+buildCommand = "cd cloud && python3 -m pip install -r requirements.txt"
 
 [deploy]
 runtime = "V2"
