@@ -52,7 +52,9 @@ async def init_db():
     global db_pool
 
     if not DATABASE_URL:
-        print("[cloud] WARNING: DATABASE_URL not set — running in memory-only mode")
+        print(
+            "[cloud] WARNING: DATABASE_URL not set — running in memory-only mode"
+        )
         return
 
     # Railway uses postgres:// but asyncpg needs postgresql://
@@ -218,7 +220,14 @@ app.add_middleware(
 )
 
 FRONTEND_DIR = os.getenv("FRONTEND_DIR", "./frontend")
-HEARTBEAT_TIMEOUT = 10  # seconds — robot offline if no heartbeat
+HEARTBEAT_TIMEOUT = 10  # seconds — nano_agent unreachable if no heartbeat
+
+# Supervisor states (from system_supervisor)
+SUPERVISOR_BOOTING = 0  # "Connecting..."
+SUPERVISOR_IDLE = 1  # Online - idle
+SUPERVISOR_ACTIVATING = 2  # Online - starting nav
+SUPERVISOR_ACTIVE = 3  # Online - running job
+SUPERVISOR_DEACTIVATING = 4  # Online - stopping nav
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Helpers
@@ -232,13 +241,33 @@ def get_client_ip(request: Request) -> str:
     return request.client.host if request.client else ""
 
 
-def is_robot_online(last_heartbeat) -> bool:
+def is_nano_reachable(last_heartbeat) -> bool:
+    """Returns True if nano_agent sent a heartbeat recently."""
     if not last_heartbeat:
         return False
     if isinstance(last_heartbeat, str):
-        last_heartbeat = datetime.fromisoformat(last_heartbeat.replace("Z", "+00:00"))
+        last_heartbeat = datetime.fromisoformat(
+            last_heartbeat.replace("Z", "+00:00"))
     now = datetime.now(timezone.utc)
     return (now - last_heartbeat).total_seconds() < HEARTBEAT_TIMEOUT
+
+
+def get_robot_online_status(last_heartbeat,
+                            supervisor_state: int) -> tuple[bool, str]:
+    """
+    Returns (online: bool, message: str) based on heartbeat and supervisor state.
+
+    - No heartbeat → Offline
+    - BOOTING (0) → Connecting...
+    - IDLE+ (1-4) → Online
+    """
+    if not is_nano_reachable(last_heartbeat):
+        return False, "Offline"
+
+    if supervisor_state == SUPERVISOR_BOOTING:
+        return False, "Connecting..."
+
+    return True, "Online"
 
 
 # Priority sort order
@@ -319,7 +348,11 @@ async def submit_delivery(req: DeliveryRequest, request: Request):
     print(
         f"[cloud] Job created: {job_id} | {req.pickup} → {req.drop} | by {req.requested_by}"
     )
-    return {"success": True, "job_id": job_id, "message": f"Job queued: {job_id}"}
+    return {
+        "success": True,
+        "job_id": job_id,
+        "message": f"Job queued: {job_id}"
+    }
 
 
 # ── Get Queue ────────────────────────────────────────────────────────────────
@@ -342,18 +375,16 @@ async def get_queue():
             """)
             jobs = [dict(r) for r in rows]
     else:
-        jobs = [
-            {
-                **j,
-                "job_id": j["id"],
-                "task_id": j["id"],
-                "pickup": j["pickup_room"],
-                "drop": j["dropoff_room"],
-            }
-            for j in _mem_jobs.values()
-            if j["status"] not in ("COMPLETE", "CANCELLED", "FAILED")
-        ]
-        jobs.sort(key=lambda x: (PRIORITY_ORDER.get(x["priority"], 1), x["created_at"]))
+        jobs = [{
+            **j,
+            "job_id": j["id"],
+            "task_id": j["id"],
+            "pickup": j["pickup_room"],
+            "drop": j["dropoff_room"],
+        } for j in _mem_jobs.values()
+                if j["status"] not in ("COMPLETE", "CANCELLED", "FAILED")]
+        jobs.sort(key=lambda x:
+                  (PRIORITY_ORDER.get(x["priority"], 1), x["created_at"]))
 
     return {"queue_depth": 10, "count": len(jobs), "tasks": jobs}
 
@@ -368,18 +399,18 @@ async def cancel_job(job_id: str, request: Request):
     if db_pool:
         async with db_pool.acquire() as conn:
             row = await conn.fetchrow(
-                "SELECT submitter_ip, status FROM jobs WHERE id = $1", job_id
-            )
+                "SELECT submitter_ip, status FROM jobs WHERE id = $1", job_id)
 
             if not row:
-                raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+                raise HTTPException(status_code=404,
+                                    detail=f"Job {job_id} not found")
 
             # IP ownership check
             job_ip = row["submitter_ip"] or ""
             if job_ip and caller_ip and job_ip != caller_ip:
                 raise HTTPException(
-                    status_code=403, detail="You can only cancel your own requests."
-                )
+                    status_code=403,
+                    detail="You can only cancel your own requests.")
 
             # If PENDING, just mark cancelled. If already dispatched, add to cancellations for nano.
             if row["status"] == "PENDING":
@@ -400,13 +431,14 @@ async def cancel_job(job_id: str, request: Request):
                 )
     else:
         if job_id not in _mem_jobs:
-            raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+            raise HTTPException(status_code=404,
+                                detail=f"Job {job_id} not found")
         job = _mem_jobs[job_id]
         job_ip = job.get("submitter_ip", "")
         if job_ip and caller_ip and job_ip != caller_ip:
             raise HTTPException(
-                status_code=403, detail="You can only cancel your own requests."
-            )
+                status_code=403,
+                detail="You can only cancel your own requests.")
         if job["status"] == "PENDING":
             job["status"] = "CANCELLED"
             job["state"] = 9
@@ -425,15 +457,16 @@ async def cancel_job(job_id: str, request: Request):
 async def current_task():
     if db_pool:
         async with db_pool.acquire() as conn:
-            robot = await conn.fetchrow("SELECT * FROM robot_status WHERE id = 1")
-            online = is_robot_online(robot["last_heartbeat"]) if robot else False
+            robot = await conn.fetchrow(
+                "SELECT * FROM robot_status WHERE id = 1")
+            reachable = is_nano_reachable(
+                robot["last_heartbeat"]) if robot else False
 
-            if not online or not robot["current_job_id"]:
+            if not reachable or not robot["current_job_id"]:
                 return {"status": "idle", "task": None}
 
-            job = await conn.fetchrow(
-                "SELECT * FROM jobs WHERE id = $1", robot["current_job_id"]
-            )
+            job = await conn.fetchrow("SELECT * FROM jobs WHERE id = $1",
+                                      robot["current_job_id"])
             if not job or job["state"] in (0, 7, 8, 9):
                 return {"status": "idle", "task": None}
 
@@ -479,13 +512,18 @@ async def robot_status():
     if db_pool:
         async with db_pool.acquire() as conn:
             row = await conn.fetchrow(
-                "SELECT last_heartbeat FROM robot_status WHERE id = 1"
+                "SELECT last_heartbeat, supervisor_state FROM robot_status WHERE id = 1"
             )
-            online = is_robot_online(row["last_heartbeat"]) if row else False
+            if not row:
+                return {"online": False, "message": "Offline"}
+            online, message = get_robot_online_status(
+                row["last_heartbeat"], row["supervisor_state"] or 0)
     else:
-        online = is_robot_online(_mem_robot.get("last_heartbeat"))
+        online, message = get_robot_online_status(
+            _mem_robot.get("last_heartbeat"),
+            _mem_robot.get("supervisor_state", 0))
 
-    return {"online": online, "message": "Robot Online" if online else "Connecting..."}
+    return {"online": online, "message": message}
 
 
 # ── Robot Health ─────────────────────────────────────────────────────────────
@@ -495,12 +533,14 @@ async def robot_status():
 async def robot_health():
     if db_pool:
         async with db_pool.acquire() as conn:
-            row = await conn.fetchrow("SELECT * FROM robot_status WHERE id = 1")
+            row = await conn.fetchrow("SELECT * FROM robot_status WHERE id = 1"
+                                      )
             if not row:
-                return {"online": False, "message": "Robot offline"}
-            online = is_robot_online(row["last_heartbeat"])
+                return {"online": False, "message": "Offline"}
+            online, message = get_robot_online_status(
+                row["last_heartbeat"], row["supervisor_state"] or 0)
             if not online:
-                return {"online": False, "message": "Robot offline"}
+                return {"online": False, "message": message}
             return {
                 "online": True,
                 "health": {
@@ -513,9 +553,11 @@ async def robot_health():
                 },
             }
     else:
-        online = is_robot_online(_mem_robot.get("last_heartbeat"))
+        online, message = get_robot_online_status(
+            _mem_robot.get("last_heartbeat"),
+            _mem_robot.get("supervisor_state", 0))
         if not online:
-            return {"online": False, "message": "Robot offline"}
+            return {"online": False, "message": message}
         return {
             "online": True,
             "health": {
@@ -585,18 +627,14 @@ async def get_pending_jobs():
             """)
             return {"jobs": [dict(r) for r in rows]}
     else:
-        jobs = [
-            {
-                "job_id": j["id"],
-                "pickup_room": j["pickup_room"],
-                "dropoff_room": j["dropoff_room"],
-                "priority": j["priority"],
-                "requested_by": j["requested_by"],
-            }
-            for j in _mem_jobs.values()
-            if j["status"] == "PENDING"
-        ]
-        jobs.sort(key=lambda x: (PRIORITY_ORDER.get(x["priority"], 1),))
+        jobs = [{
+            "job_id": j["id"],
+            "pickup_room": j["pickup_room"],
+            "dropoff_room": j["dropoff_room"],
+            "priority": j["priority"],
+            "requested_by": j["requested_by"],
+        } for j in _mem_jobs.values() if j["status"] == "PENDING"]
+        jobs.sort(key=lambda x: (PRIORITY_ORDER.get(x["priority"], 1), ))
         return {"jobs": jobs}
 
 
@@ -686,18 +724,16 @@ async def heartbeat(data: HeartbeatData):
                 data.system_message,
             )
     else:
-        _mem_robot.update(
-            {
-                "online": True,
-                "last_heartbeat": now,
-                "current_job_id": data.current_job_id,
-                "cpu_percent": data.cpu_percent,
-                "memory_used_mb": data.memory_used_mb,
-                "memory_total_mb": data.memory_total_mb,
-                "supervisor_state": data.supervisor_state,
-                "system_message": data.system_message,
-            }
-        )
+        _mem_robot.update({
+            "online": True,
+            "last_heartbeat": now,
+            "current_job_id": data.current_job_id,
+            "cpu_percent": data.cpu_percent,
+            "memory_used_mb": data.memory_used_mb,
+            "memory_total_mb": data.memory_total_mb,
+            "supervisor_state": data.supervisor_state,
+            "system_message": data.system_message,
+        })
 
     return {"success": True}
 
@@ -850,15 +886,21 @@ async def health():
     if db_pool:
         async with db_pool.acquire() as conn:
             pending = await conn.fetchval(
-                "SELECT COUNT(*) FROM jobs WHERE status = 'PENDING'"
-            )
+                "SELECT COUNT(*) FROM jobs WHERE status = 'PENDING'")
             row = await conn.fetchrow(
-                "SELECT last_heartbeat FROM robot_status WHERE id = 1"
+                "SELECT last_heartbeat, supervisor_state FROM robot_status WHERE id = 1"
             )
-            online = is_robot_online(row["last_heartbeat"]) if row else False
+            if row:
+                online, _ = get_robot_online_status(
+                    row["last_heartbeat"], row["supervisor_state"] or 0)
+            else:
+                online = False
     else:
-        pending = len([j for j in _mem_jobs.values() if j["status"] == "PENDING"])
-        online = is_robot_online(_mem_robot.get("last_heartbeat"))
+        pending = len(
+            [j for j in _mem_jobs.values() if j["status"] == "PENDING"])
+        online, _ = get_robot_online_status(
+            _mem_robot.get("last_heartbeat"),
+            _mem_robot.get("supervisor_state", 0))
 
     return {
         "status": "ok",
