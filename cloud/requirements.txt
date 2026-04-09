@@ -1,6 +1,3 @@
-# Cloud Backend Requirements
-# Railway will install these automatically
-
 fastapi>=0.109.0
 uvicorn[standard]>=0.27.0
 pydantic>=2.5.0

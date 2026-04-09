@@ -164,6 +164,9 @@ class RobotBridgeNode(Node):
         request.pickup_room = pickup_room
         request.dropoff_room = dropoff_room
         request.priority = priority
+        # Pass cloud's job_id if the service supports it
+        if hasattr(request, "job_id"):
+            request.job_id = job_id
 
         future = self._delivery_client.call_async(request)
         rclpy.spin_until_future_complete(self, future, timeout_sec=10.0)
@@ -442,4 +445,3 @@ def get_job_queue() -> list:
     if node is None:
         return []
     return node.get_job_queue()
-
