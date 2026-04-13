@@ -88,24 +88,38 @@ def post(path: str, data=None):
 def push_rooms():
     """Load rooms from tiles_config.yaml and push to cloud."""
     try:
-        from config import load_config, get_rooms
+        import yaml
+        yaml_path = os.getenv(
+            "TILES_CONFIG_PATH",
+            "/workspace/ros_ws/src/tile_manager/config/tiles_config.yaml"
+        )
+        with open(yaml_path, "r") as f:
+            config = yaml.safe_load(f)
 
-        load_config()
-        rooms = get_rooms()
-        log.info(f"Loaded {len(rooms)} rooms from config")
+        seen = set()
+        rooms = []
+        for tile_id, tile_data in config.get("tiles", {}).items():
+            for room_id, room_data in tile_data.get("rooms", {}).items():
+                if room_id.lower() == "home" or room_id in seen:
+                    continue
+                seen.add(room_id)
+                rooms.append({
+                    "id": room_id,
+                    "description": room_data.get("description", ""),
+                    "coordinates": room_data.get("coordinates", [0.0, 0.0]),
+                    "tile": int(tile_id),
+                })
+        rooms.sort(key=lambda r: r["id"])
 
         result = post("/api/nano/rooms", rooms)
         if result:
             log.info(f"Pushed {len(rooms)} rooms to cloud ✓")
         else:
-            log.warning("Failed to push rooms — will retry next restart")
+            log.warning("Failed to push rooms")
     except Exception as e:
         log.error(f"push_rooms error: {e}")
         import traceback
-
         traceback.print_exc()
-
-
 # ═══════════════════════════════════════════════════════════════════════════
 # Poll for pending jobs and submit to ROS
 # ═══════════════════════════════════════════════════════════════════════════
