@@ -286,12 +286,14 @@ def poll_cancellations():
         log.info(f"Cancelling job: {job_id}")
         _cancelled_job_ids.add(job_id)
         result = ros_bridge.cancel_job(job_id=job_id)
-        if result.get("success"):
+        if result.get("accepted"):
             log.info(f"Cancel sent to ROS: {job_id}")
+            # Tell cloud cancellation was accepted
+            post(f"/api/nano/cancel_confirm/{job_id}")  # Add this line
         else:
             log.warning(f"Cancel failed for {job_id}: {result.get('message')}")
 
-
+            
 # ═══════════════════════════════════════════════════════════════════════════
 # Main loop
 # ═══════════════════════════════════════════════════════════════════════════

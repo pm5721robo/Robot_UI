@@ -216,15 +216,14 @@ class RobotBridgeNode(Node):
         while not future.done():
             if time.time() - start > timeout:
                 logger.error("[ros_bridge] /cancel_job timed out")
-                return {"success": False, "message": "Request timed out."}
+                return {"accepted": False, "message": "Request timed out."}
             time.sleep(0.1)
 
         response = future.result()
-        logger.info(
-            f"[ros_bridge] /cancel_job: success={response.success} {response.message}"
-        )
+        logger.info(f"[ros_bridge] /cancel_job: accepted={response.accepted} message={response.message}")
 
-        return {"success": response.success, "message": response.message}
+        return {"accepted": response.accepted, "message": response.message}
+    
 
     # ════════════════════════════════════════════════════════════════════
     # Confirm Job
@@ -444,8 +443,8 @@ def cancel_job(job_id: str = "") -> dict:
     """Cancel a job via ROS."""
     node = get_node()
     if node is None:
-        return {"success": False, "message": "ROS2 bridge not initialized."}
-    return node.cancel_job(job_id)
+        return {"accepted": False, "message": "ROS2 bridge not initialized."}  # Changed from "success"
+    return node.cancel_job(job_id)  # This already returns {"accepted": ..., "message": ...}
 
 
 def confirm_job(proceed: bool = True) -> dict:
