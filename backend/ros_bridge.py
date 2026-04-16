@@ -126,6 +126,10 @@ class RobotBridgeNode(Node):
         self._queue_sub = self.create_subscription(
             StringMsg, "/job_queue", self._on_job_queue, 10
         )
+        self._alerts = []  # list of active alerts
+        self._alert_sub = self.create_subscription(
+            StringMsg, "/robot_alerts", self._on_robot_alert, 10
+        )
 
         logger.info("[ros_bridge] Subscriptions created")
 
@@ -310,6 +314,8 @@ class RobotBridgeNode(Node):
         except Exception as e:
             logger.error(f"[ros_bridge] Failed to parse /job_queue: {e}")
 
+
+    
     # ════════════════════════════════════════════════════════════════════
     # Getters
     # ════════════════════════════════════════════════════════════════════
@@ -334,6 +340,30 @@ class RobotBridgeNode(Node):
 
     def get_job_queue(self) -> list:
         return self._job_queue
+
+    def _on_robot_alert(self, msg: StringMsg) -> None:
+        """Called when any node publishes to /robot_alerts."""
+        try:
+            data = json.loads(msg.data)
+            alert = {
+                "message": data.get("message", msg.data),
+                "severity": data.get("severity", "warning"),
+                "timestamp": time.time()
+            }
+        except:
+            alert = {
+                "message": msg.data,
+                "severity": "warning",
+                "timestamp": time.time()
+            }
+        self._alerts = [a for a in self._alerts if a["message"] != alert["message"]]
+        self._alerts.append(alert)
+        logger.info(f"[ros_bridge] Alert received: {alert['message']}")
+
+    def get_alerts(self) -> list:
+        """Auto-clear alerts older than 10 seconds."""
+        self._alerts = [a for a in self._alerts if time.time() - a["timestamp"] < 10]
+        return list(self._alerts)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -445,3 +475,8 @@ def get_job_queue() -> list:
     if node is None:
         return []
     return node.get_job_queue()
+def get_alerts() -> list:
+    node = get_node()
+    if node is None:
+        return []
+    return node.get_alerts()

@@ -239,6 +239,18 @@ def send_heartbeat():
         log.error(f"heartbeat error: {e}")
 
 
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Push ALerts
+# ═══════════════════════════════════════════════════════════════════════════
+def push_alerts():
+    """Push active alerts to cloud."""
+    try:
+        alerts = ros_bridge.get_alerts()
+        post("/api/nano/alerts", {"alerts": alerts})
+    except Exception as e:
+        log.error(f"push_alerts error: {e}")
+
 # ═══════════════════════════════════════════════════════════════════════════
 # Poll confirmations
 # ═══════════════════════════════════════════════════════════════════════════
@@ -321,6 +333,8 @@ def main():
 
             # 5. Check for cancellations
             poll_cancellations()
+
+            push_alerts()
 
         except Exception as e:
             log.error(f"Loop error: {e}")

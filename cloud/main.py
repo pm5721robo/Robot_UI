@@ -158,6 +158,7 @@ _mem_robot = {
 _mem_rooms = []
 _mem_confirmations = {"confirm_collection": False, "confirm_delivery": False}
 _mem_cancellations = []
+_alerts: list = []
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Models
@@ -909,3 +910,18 @@ async def health():
         "pending_jobs": pending,
         "robot_online": online,
     }
+
+
+
+@app.post("/api/nano/alerts")
+async def update_alerts(request: Request):
+    global _alerts
+    data = await request.json()
+    with _lock:
+        _alerts = data.get("alerts", [])
+    return {"success": True}
+
+@app.get("/api/alerts")
+async def get_alerts():
+    with _lock:
+        return {"alerts": list(_alerts)}
