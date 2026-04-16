@@ -219,7 +219,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-FRONTEND_DIR = os.getenv("FRONTEND_DIR", "./frontend")
+FRONTEND_DIR = os.getenv("FRONTEND_DIR", ".cloud/frontend/index.html")
 HEARTBEAT_TIMEOUT = 10  # seconds — nano_agent unreachable if no heartbeat
 
 # Supervisor states (from system_supervisor)
