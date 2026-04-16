@@ -37,7 +37,9 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import asyncpg
+import asyncio  
+import asyncpg  
+import redis
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Database
@@ -131,14 +133,36 @@ async def init_db():
             )
         """)
 
+        # Create sequence for sequential job IDs (JOB_001, JOB_002, ...)
+        await conn.execute("""
+            CREATE SEQUENCE IF NOT EXISTS job_id_seq 
+            START 1 
+            INCREMENT 1
+        """)
+
     print("[cloud] Database initialized ✓")
 
-
+    
 async def close_db():
     global db_pool
     if db_pool:
         await db_pool.close()
 
+
+async def get_next_job_id():
+    """Generate sequential job ID using PostgreSQL sequence"""
+    if db_pool:
+        async with db_pool.acquire() as conn:
+            next_id = await conn.fetchval("SELECT nextval('job_id_seq')")
+            return f"JOB_{next_id:03d}"
+    else:
+        # Fallback for memory mode
+        if not hasattr(get_next_job_id, "counter"):
+            get_next_job_id.counter = 1
+        current = get_next_job_id.counter
+        get_next_job_id.counter += 1
+        return f"JOB_{current:03d}"
+    
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Fallback in-memory storage (when DATABASE_URL not set)
@@ -159,6 +183,7 @@ _mem_rooms = []
 _mem_confirmations = {"confirm_collection": False, "confirm_delivery": False}
 _mem_cancellations = []
 _alerts: list = []
+_lock = asyncio.Lock() 
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Models
@@ -311,7 +336,7 @@ async def list_rooms():
 
 @app.post("/api/delivery")
 async def submit_delivery(req: DeliveryRequest, request: Request):
-    job_id = f"JOB-{str(uuid.uuid4())[:8].upper()}"
+    job_id = await get_next_job_id()  
     submitter_ip = req.submitter_ip or get_client_ip(request)
     now = datetime.now(timezone.utc)
 
