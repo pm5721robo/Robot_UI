@@ -184,7 +184,6 @@
   .icon-green  { background: var(--accent-2-soft);  color: var(--accent-2); }
   .icon-orange { background: var(--warning-soft);   color: var(--warning); }
   .icon-red    { background: var(--danger-soft);    color: var(--danger); }
-  .icon-purple { background: #F3EEFF; color: #7C3AED; }
 
   .card-title { font-size: 14px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.2px; }
   .card-desc  { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
@@ -255,11 +254,8 @@
     border-radius: var(--radius-sm); padding: 12px 14px;
   }
   .task-status-label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 8px; }
-
   .status-track { display: flex; align-items: center; gap: 0; position: relative; }
-
   .step { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; position: relative; }
-
   .step-dot {
     width: 22px; height: 22px; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
@@ -268,19 +264,16 @@
   .step-dot.done   { background: var(--accent-2); color: #fff; }
   .step-dot.active { background: var(--accent); color: #fff; box-shadow: 0 0 0 4px rgba(26,107,255,0.15); }
   .step-dot.todo   { background: var(--border); color: var(--text-muted); }
-
   .step-label { font-size: 9.5px; font-weight: 500; color: var(--text-muted); text-align: center; white-space: normal; max-width: 64px; line-height: 1.3; }
   .step-label.active { color: var(--accent); font-weight: 700; }
   .step-label.done-lbl { color: var(--accent-2); }
-
   .step-line { flex: 1; height: 2px; background: var(--border); margin-bottom: 14px; position: relative; }
   .step-line.done { background: var(--accent-2); }
   .step-line.active { background: var(--accent); }
 
-  /* ── RIGHT PANEL: split into 2 mini-cards ── */
+  /* ── RIGHT PANEL ── */
   .right-panel { display: flex; flex-direction: column; gap: 12px; }
 
-  /* Robot Action Card */
   .mini-card {
     background: var(--surface);
     border-radius: var(--radius);
@@ -295,7 +288,6 @@
   }
   .mini-card-body { padding: 14px 16px; }
 
-  /* Action line */
   .action-line {
     display: flex; align-items: center; gap: 10px;
     padding: 10px 12px;
@@ -311,7 +303,6 @@
   .action-value { font-size: 13.5px; font-weight: 600; color: var(--text-primary); margin-top: 1px; }
   .action-value.highlighted { color: var(--accent); }
 
-  /* Tile / location badge */
   .location-badge {
     display: inline-flex; align-items: center; gap: 5px;
     background: var(--accent-soft); color: var(--accent);
@@ -320,8 +311,60 @@
     font-family: var(--mono);
   }
 
-  /* Compact alerts */
-  .alert-row { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--border); }
+  /* ── SYSTEM ALERTS CARD with Health + Alerts sections ── */
+  .alerts-section-title {
+    font-size: 10px; font-weight: 700; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.6px;
+    padding: 8px 16px 6px;
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--border);
+    border-top: 1px solid var(--border);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .alerts-section-title:first-child { border-top: none; }
+
+  /* Health grid */
+  .health-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding: 12px 16px;
+  }
+  .health-item {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 9px 12px;
+  }
+  .health-item-label {
+    font-size: 10px; font-weight: 600; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 3px;
+  }
+  .health-item-value {
+    font-family: var(--mono); font-size: 13px; font-weight: 600;
+    color: var(--text-primary);
+  }
+  .health-item-value.good  { color: var(--accent-2); }
+  .health-item-value.warn  { color: var(--warning); }
+  .health-item-value.crit  { color: var(--danger); }
+  .health-item-value.muted { color: var(--text-muted); }
+
+  /* Progress bar for CPU/Memory */
+  .health-bar-wrap { margin-top: 4px; }
+  .health-bar-bg {
+    width: 100%; height: 4px; background: var(--border);
+    border-radius: 2px; overflow: hidden;
+  }
+  .health-bar-fill {
+    height: 100%; border-radius: 2px;
+    transition: width 0.5s ease;
+  }
+  .health-bar-fill.good { background: var(--accent-2); }
+  .health-bar-fill.warn { background: var(--warning); }
+  .health-bar-fill.crit { background: var(--danger); }
+
+  /* Alerts rows section */
+  .alert-row { display: flex; align-items: center; gap: 8px; padding: 7px 16px; border-bottom: 1px solid var(--border); }
   .alert-row:last-child { border-bottom: none; }
   .alert-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
   .alert-dot.green  { background: var(--accent-2); }
@@ -331,6 +374,31 @@
   .alert-dot.blue   { background: var(--accent); }
   .alert-row-msg { font-size: 12.5px; font-weight: 500; color: var(--text-primary); flex: 1; }
   .alert-row-tag { font-size: 10.5px; font-weight: 600; padding: 2px 7px; border-radius: 10px; white-space: nowrap; }
+
+  /* ── POPUP ALERTS ── */
+  #alert-popup-container {
+    position: fixed; bottom: 24px; right: 24px;
+    display: flex; flex-direction: column; gap: 10px;
+    z-index: 9999; max-width: 360px;
+    pointer-events: none;
+  }
+  .alert-popup {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    display: flex; align-items: flex-start; gap: 12px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.14);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    opacity: 0; transform: translateX(100%);
+    pointer-events: auto;
+  }
+  .alert-popup.show { opacity: 1; transform: translateX(0); }
+  .alert-popup-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+  .alert-popup-severity {
+    font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px;
+  }
+  .alert-popup-message { font-size: 13px; font-weight: 500; color: var(--text-primary); }
 
   /* ── TABLE ── */
   .table-wrap { overflow-x: auto; }
@@ -347,8 +415,6 @@
   .room-tag { display: inline-flex; align-items: center; gap: 4px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: 3px 8px; font-size: 12px; font-weight: 500; font-family: var(--mono); color: var(--text-secondary); }
   .user-cell { display: flex; align-items: center; gap: 7px; }
   .avatar { width: 24px; height: 24px; border-radius: 50%; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: #fff; }
-
-  /* YOU badge */
   .you-badge {
     display: inline-flex; align-items: center;
     background: var(--accent-soft); color: var(--accent);
@@ -374,13 +440,26 @@
   .mtl { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; }
   .mtv { font-size: 13.5px; font-weight: 500; color: var(--text-primary); }
 
+  /* Mobile status bar — always visible */
+  .mobile-status-bar {
+    display: none;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 8px 16px;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .mobile-status-bar .status-pill { font-size: 11px; padding: 4px 10px; }
+
   @media (max-width: 900px) { .middle-row { grid-template-columns: 1fr; } }
 
   @media (max-width: 700px) {
     main { padding: 16px 14px 40px; gap: 16px; }
     .header-inner { padding: 0 16px; }
     .logo-sub { display: none; }
-    .status-pill { display: none; }
+    /* Hide pill from header on mobile, show mobile bar instead */
+    .header-right .status-pill { display: none; }
+    .mobile-status-bar { display: flex; }
     .form-row { grid-template-columns: 1fr; }
     .btn-submit { width: 100%; }
     .table-desktop-current { display: none; }
@@ -388,6 +467,8 @@
     .queue-desktop { display: none; }
     .queue-mobile { display: block; }
     .task-meta { grid-template-columns: 1fr 1fr; }
+    .health-grid { grid-template-columns: 1fr 1fr; }
+    #alert-popup-container { bottom: 16px; right: 16px; left: 16px; max-width: none; }
   }
 
   @media (max-width: 480px) {
@@ -398,10 +479,20 @@
     .queue-mobile-item { margin: 0 16px 10px; }
     .queue-mobile-item:first-child { margin-top: 12px; }
     .mobile-task-card { margin: 12px 16px; }
+    .health-grid { grid-template-columns: 1fr; }
   }
 </style>
 </head>
 <body>
+
+<!-- ── MOBILE STATUS BAR (shown only on mobile) ── -->
+<div class="mobile-status-bar" id="mobile-status-bar">
+  <span style="font-size:12px;font-weight:600;color:var(--text-secondary);">Robot Status</span>
+  <div class="status-pill connecting" id="robot-status-pill-mobile">
+    <div class="status-dot"></div>
+    <span id="robot-status-text-mobile">Connecting...</span>
+  </div>
+</div>
 
 <!-- ── HEADER ── -->
 <header>
@@ -552,10 +643,7 @@
 
         <!-- PICKUP ACTION BUTTON -->
         <div id="collect-btn-wrap" style="margin-top:14px;">
-          <button
-            id="collect-parcel-btn"
-            disabled
-            onclick="confirmCollection()"
+          <button id="collect-parcel-btn" disabled onclick="confirmCollection()"
             style="width:100%;padding:12px;border-radius:var(--radius-sm);border:2px dashed var(--border);background:var(--surface-2);color:var(--text-muted);font-family:var(--font);font-size:14px;font-weight:600;cursor:not-allowed;display:flex;align-items:center;justify-content:center;gap:8px;transition:all 0.2s;">
             <span style="font-size:18px;">📦</span>
             Drop the Parcel on the Bot — Waiting for Robot to Arrive
@@ -567,10 +655,7 @@
 
         <!-- DELIVERY ACTION BUTTON -->
         <div id="deliver-btn-wrap" style="margin-top:10px;">
-          <button
-            id="parcel-received-btn"
-            disabled
-            onclick="confirmDelivery()"
+          <button id="parcel-received-btn" disabled onclick="confirmDelivery()"
             style="width:100%;padding:12px;border-radius:var(--radius-sm);border:2px dashed var(--border);background:var(--surface-2);color:var(--text-muted);font-family:var(--font);font-size:14px;font-weight:600;cursor:not-allowed;display:flex;align-items:center;justify-content:center;gap:8px;transition:all 0.2s;">
             <span style="font-size:18px;">✅</span>
             Confirm Delivery of Parcel — Waiting for Robot to Arrive
@@ -608,10 +693,10 @@
       </div>
     </div>
 
-    <!-- ── RIGHT PANEL: Robot Action + Compact Alerts ── -->
+    <!-- ── RIGHT PANEL ── -->
     <div class="right-panel">
 
-      <!-- ── ROBOT ACTION & LOCATION CARD ── -->
+      <!-- ── ROBOT ACTION CARD ── -->
       <div class="mini-card">
         <div class="mini-card-header">
           <div class="card-title-group">
@@ -648,7 +733,7 @@
         </div>
       </div>
 
-      <!-- ── COMPACT ALERTS CARD ── -->
+      <!-- ── SYSTEM ALERTS CARD (Health + Alerts) ── -->
       <div class="mini-card" style="flex:1;">
         <div class="mini-card-header">
           <div class="card-title-group">
@@ -663,15 +748,61 @@
               <div class="card-desc">Health &amp; notifications</div>
             </div>
           </div>
-          <span class="badge badge-orange" id="alerts-badge">0 Alerts</span>
+          <span class="badge badge-gray" id="alerts-badge">0 Alerts</span>
         </div>
-        <div style="padding:10px 16px 14px;" id="alerts-body">
+
+        <!-- Health Section -->
+        <div class="alerts-section-title">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+          Robot Health
+        </div>
+        <div class="health-grid" id="health-grid">
+          <!-- CPU -->
+          <div class="health-item">
+            <div class="health-item-label">CPU Usage</div>
+            <div class="health-item-value muted" id="health-cpu">— %</div>
+            <div class="health-bar-wrap">
+              <div class="health-bar-bg"><div class="health-bar-fill good" id="health-cpu-bar" style="width:0%"></div></div>
+            </div>
+          </div>
+          <!-- Memory -->
+          <div class="health-item">
+            <div class="health-item-label">Memory</div>
+            <div class="health-item-value muted" id="health-mem">— / — MB</div>
+            <div class="health-bar-wrap">
+              <div class="health-bar-bg"><div class="health-bar-fill good" id="health-mem-bar" style="width:0%"></div></div>
+            </div>
+          </div>
+          <!-- Supervisor State -->
+          <div class="health-item">
+            <div class="health-item-label">Supervisor</div>
+            <div class="health-item-value muted" id="health-supervisor">—</div>
+          </div>
+          <!-- Autonomous -->
+          <div class="health-item">
+            <div class="health-item-label">Autonomous</div>
+            <div class="health-item-value muted" id="health-autonomous">—</div>
+          </div>
+          <!-- System Message -->
+          <div class="health-item" style="grid-column: span 2;">
+            <div class="health-item-label">System Message</div>
+            <div class="health-item-value muted" id="health-sysmsg" style="font-family:var(--font);font-size:12px;font-weight:500;">—</div>
+          </div>
+        </div>
+
+        <!-- Alerts Section -->
+        <div class="alerts-section-title">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          System Notifications
+        </div>
+        <div id="alerts-body" style="padding-bottom:4px;">
           <div class="alert-row">
             <div class="alert-dot gray"></div>
             <div class="alert-row-msg" style="color:var(--text-muted);">No alerts — robot is idle</div>
           </div>
         </div>
-      </div>
+
+      </div><!-- end system alerts card -->
 
     </div><!-- end right-panel -->
 
@@ -696,8 +827,6 @@
       </div>
       <span class="badge badge-gray" id="queue-count-badge">0 Pending</span>
     </div>
-
-    <!-- Desktop table -->
     <div class="table-wrap queue-desktop">
       <table>
         <thead>
@@ -711,8 +840,6 @@
         </tbody>
       </table>
     </div>
-
-    <!-- Mobile -->
     <div class="queue-mobile" id="queue-mobile-list">
       <div style="text-align:center;color:var(--text-muted);padding:24px 16px;">Loading queue...</div>
     </div>
@@ -720,44 +847,27 @@
 
 </main>
 
+<!-- ── ALERT POPUPS ── -->
+<div id="alert-popup-container"></div>
+
 <script>
-// ═══════════════════════════════════════════════════════════════
-// CONFIG
-// ═══════════════════════════════════════════════════════════════
 const API = 'https://robotui.up.railway.app';
 
-// ═══════════════════════════════════════════════════════════════
-// CORRIDOR / TILE NAME MAP
-// Add names here once corridor names are decided.
-// Format: tile number (int) → human-readable corridor name
-// ═══════════════════════════════════════════════════════════════
-const TILE_NAMES = {
-  // 1: 'HoD Corridor',
-  // 2: 'Pantry Corridor',
-  // 3: 'Exam Cell Corridor',
-  // 4: 'Staff Room Corridor',
-  // 5: 'Classroom Corridor',
-};
+const TILE_NAMES = {};
 function getTileName(tileNum) {
   if (!tileNum && tileNum !== 0) return null;
   return TILE_NAMES[tileNum] || null;
 }
 
-// ═══════════════════════════════════════════════════════════════
-// IP IDENTITY — detect this browser session's IP once on load
-// ═══════════════════════════════════════════════════════════════
 let MY_IP = null;
-let MY_NAME = null; // name entered in last submission this session
+let MY_NAME = null;
 
 async function detectMyIP() {
   try {
     const res = await fetch(API + '/api/my-ip');
     const data = await res.json();
     MY_IP = data.ip || null;
-  } catch(e) {
-    // fallback: no IP detection, features gracefully degrade
-    MY_IP = null;
-  }
+  } catch(e) { MY_IP = null; }
 }
 
 // ── Room Loader ────────────────────────────────────────────────────────────
@@ -801,15 +911,12 @@ async function submitDelivery() {
   const name     = document.getElementById('requested-by').value.trim();
   const priority = document.getElementById('priority-select').value;
   const btn      = document.getElementById('submit-btn');
-
   if (!pickup)   { showMsg('Please select a Pickup Room.', 'error'); return; }
   if (!drop)     { showMsg('Please select a Drop Room.', 'error'); return; }
   if (!name)     { showMsg('Please enter your name.', 'error'); return; }
   if (!priority) { showMsg('Please select a Priority.', 'error'); return; }
-
   btn.disabled = true;
   btn.textContent = 'Submitting...';
-
   try {
     const res = await fetch(API + '/api/delivery', {
       method: 'POST',
@@ -818,7 +925,6 @@ async function submitDelivery() {
     });
     const data = await res.json();
     if (res.ok) {
-      // Remember this user's name so we can match in queue
       MY_NAME = name;
       showMsg(`✅ ${data.message}`, 'success');
       loadQueue();
@@ -832,7 +938,6 @@ async function submitDelivery() {
   } catch (err) {
     showMsg('❌ Could not reach server.', 'error');
   }
-
   btn.disabled = false;
   btn.textContent = 'Submit Request';
 }
@@ -846,7 +951,6 @@ function showMsg(text, type) {
   setTimeout(() => { box.style.display = 'none'; }, 4000);
 }
 
-// ── Avatar & Priority helpers ──────────────────────────────────────────────
 const AVATAR_COLORS = ['#6366F1','#EC4899','#F59E0B','#10B981','#3B82F6','#EF4444','#8B5CF6','#14B8A6'];
 function avatarColor(name) {
   let hash = 0;
@@ -857,17 +961,12 @@ function priorityBadge(p) {
   const map = { High: 'badge-red', Medium: 'badge-orange', Low: 'badge-green' };
   return `<span class="badge ${map[p] || 'badge-gray'}">${p}</span>`;
 }
-
-// ── Is this MY job? ───────────────────────────────────────────────────────
-// Match by IP stored in job (from cloud) OR by name match as fallback
 function isMyJob(task) {
   if (MY_IP && task.submitter_ip && task.submitter_ip === MY_IP) return true;
-  if (MY_NAME && task.requested_by &&
-      task.requested_by.toLowerCase() === MY_NAME.toLowerCase()) return true;
+  if (MY_NAME && task.requested_by && task.requested_by.toLowerCase() === MY_NAME.toLowerCase()) return true;
   return false;
 }
 
-// ── Cancel task ────────────────────────────────────────────────────────────
 async function cancelTask(taskId) {
   if (!confirm(`Cancel task ${taskId}?`)) return;
   try {
@@ -878,56 +977,42 @@ async function cancelTask(taskId) {
   } catch (e) { alert('Server unreachable.'); }
 }
 
-// ── Load queue ─────────────────────────────────────────────────────────────
+// ── Load Queue ─────────────────────────────────────────────────────────────
 async function loadQueue() {
   try {
     const res = await fetch(API + '/api/queue');
     if (!res.ok) throw new Error('Failed');
     const data = await res.json();
     const tasks = data.tasks || [];
-
     const badge = document.getElementById('queue-count-badge');
     if (badge) badge.textContent = `${tasks.length} Pending`;
-
-    // Desktop table
     const tbody = document.getElementById('queue-tbody');
     if (tbody) {
       if (tasks.length === 0) {
         tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:24px;">No pending tasks in queue</td></tr>`;
       } else {
         tbody.innerHTML = tasks.map((t, i) => {
-          const name    = t.requested_by || 'Unknown';
+          const name = t.requested_by || 'Unknown';
           const initial = name[0].toUpperCase();
-          const color   = avatarColor(name);
-          const mine    = isMyJob(t);
-
-          // Requested By cell — show YOU badge if it's mine
-          const nameDisplay = mine
-            ? `${name}<span class="you-badge">YOU</span>`
-            : name;
-
-          // Cancel button — only show (enabled) for MY jobs
+          const color = avatarColor(name);
+          const mine = isMyJob(t);
+          const nameDisplay = mine ? `${name}<span class="you-badge">YOU</span>` : name;
           const cancelBtn = mine
-            ? `<button onclick="cancelTask('${t.job_id || t.task_id}')"
-                style="background:var(--danger-soft);color:var(--danger);border:1px solid rgba(255,59,92,0.2);padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">
-                Cancel</button>`
+            ? `<button onclick="cancelTask('${t.job_id || t.task_id}')" style="background:var(--danger-soft);color:var(--danger);border:1px solid rgba(255,59,92,0.2);padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">Cancel</button>`
             : `<span style="color:var(--text-muted);font-size:12px;">—</span>`;
-
           return `<tr ${mine ? 'style="background:rgba(26,107,255,0.03);"' : ''}>
-              <td><div class="pos-num">${i + 1}</div></td>
-              <td><span class="task-id-cell">${t.job_id || t.task_id}</span></td>
-              <td><span class="room-tag">${t.pickup_room || t.pickup}</span></td>
-              <td><span class="room-tag">${t.dropoff_room || t.drop}</span></td>
-              <td><div class="user-cell"><div class="avatar" style="background:${color};">${initial}</div>${nameDisplay}</div></td>
-              <td>${priorityBadge(t.priority === 'High' ? 'High' : t.priority === 'Low' ? 'Low' : t.priority === 1 ? 'High' : t.priority === 2 ? 'Low' : 'Medium')}</td>
-              <td><span class="badge badge-gray">Queued</span></td>
-              <td>${cancelBtn}</td>
+            <td><div class="pos-num">${i + 1}</div></td>
+            <td><span class="task-id-cell">${t.job_id || t.task_id}</span></td>
+            <td><span class="room-tag">${t.pickup_room || t.pickup}</span></td>
+            <td><span class="room-tag">${t.dropoff_room || t.drop}</span></td>
+            <td><div class="user-cell"><div class="avatar" style="background:${color};">${initial}</div>${nameDisplay}</div></td>
+            <td>${priorityBadge(t.priority === 1 ? 'High' : t.priority === 2 ? 'Low' : t.priority)}</td>
+            <td><span class="badge badge-gray">Queued</span></td>
+            <td>${cancelBtn}</td>
           </tr>`;
         }).join('');
       }
     }
-
-    // Mobile cards
     const mobileList = document.getElementById('queue-mobile-list');
     if (mobileList) {
       if (tasks.length === 0) {
@@ -935,38 +1020,25 @@ async function loadQueue() {
       } else {
         mobileList.innerHTML = tasks.map((t, i) => {
           const mine = isMyJob(t);
-          const nameDisplay = mine
-            ? `${t.requested_by || 'Unknown'} <span class="you-badge">YOU</span>`
-            : (t.requested_by || 'Unknown');
-          const cancelSection = mine
-            ? `<div style="margin-top:10px;">
-                <button onclick="cancelTask('${t.job_id || t.task_id}')"
-                  style="background:var(--danger-soft);color:var(--danger);border:1px solid rgba(255,59,92,0.2);padding:5px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;width:100%;">
-                  Cancel Task
-                </button>
-               </div>`
-            : '';
-          return `
-            <div class="queue-mobile-item" ${mine ? 'style="border-color:rgba(26,107,255,0.3);background:rgba(26,107,255,0.03);"' : ''}>
-              <div class="qmi-header">
-                <span class="qmi-pos">Position #${i + 1}</span>
-                <span class="task-id-cell" style="font-family:var(--mono);font-size:13px;color:var(--accent);">${t.job_id || t.task_id}</span>
-              </div>
-              <div class="qmi-grid">
-                <div class="qmi-field"><div class="qmi-label">Pickup</div><div class="qmi-val">${t.pickup_room || t.pickup}</div></div>
-                <div class="qmi-field"><div class="qmi-label">Drop</div><div class="qmi-val">${t.dropoff_room || t.drop}</div></div>
-                <div class="qmi-field"><div class="qmi-label">Requested By</div><div class="qmi-val">${nameDisplay}</div></div>
-                <div class="qmi-field"><div class="qmi-label">Priority</div>${priorityBadge(t.priority)}</div>
-              </div>
-              ${cancelSection}
-            </div>`;
+          const nameDisplay = mine ? `${t.requested_by || 'Unknown'} <span class="you-badge">YOU</span>` : (t.requested_by || 'Unknown');
+          const cancelSection = mine ? `<div style="margin-top:10px;"><button onclick="cancelTask('${t.job_id || t.task_id}')" style="background:var(--danger-soft);color:var(--danger);border:1px solid rgba(255,59,92,0.2);padding:5px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;width:100%;">Cancel Task</button></div>` : '';
+          return `<div class="queue-mobile-item" ${mine ? 'style="border-color:rgba(26,107,255,0.3);background:rgba(26,107,255,0.03);"' : ''}>
+            <div class="qmi-header">
+              <span class="qmi-pos">Position #${i + 1}</span>
+              <span class="task-id-cell" style="font-family:var(--mono);font-size:13px;color:var(--accent);">${t.job_id || t.task_id}</span>
+            </div>
+            <div class="qmi-grid">
+              <div class="qmi-field"><div class="qmi-label">Pickup</div><div class="qmi-val">${t.pickup_room || t.pickup}</div></div>
+              <div class="qmi-field"><div class="qmi-label">Drop</div><div class="qmi-val">${t.dropoff_room || t.drop}</div></div>
+              <div class="qmi-field"><div class="qmi-label">Requested By</div><div class="qmi-val">${nameDisplay}</div></div>
+              <div class="qmi-field"><div class="qmi-label">Priority</div>${priorityBadge(t.priority)}</div>
+            </div>
+            ${cancelSection}
+          </div>`;
         }).join('');
       }
     }
-
-  } catch (err) {
-    console.error('[queue] Failed:', err);
-  }
+  } catch (err) { console.error('[queue] Failed:', err); }
 }
 
 // ── Current Task ───────────────────────────────────────────────────────────
@@ -974,7 +1046,6 @@ async function loadCurrentTask() {
   try {
     const res  = await fetch(API + '/api/current-task');
     const data = await res.json();
-
     if (data.status === 'idle' || !data.task) {
       document.getElementById('current-task-id').textContent     = '—';
       document.getElementById('current-task-pickup').textContent = '—';
@@ -992,7 +1063,6 @@ async function loadCurrentTask() {
       disableDeliverButton();
       return;
     }
-
     const t = data.task;
     document.getElementById('current-task-id').textContent     = t.ros_job_id || t.task_id || '—';
     document.getElementById('current-task-pickup').textContent = t.pickup || '—';
@@ -1005,423 +1075,332 @@ async function loadCurrentTask() {
     document.getElementById('m-task-pickup').textContent = t.pickup || '—';
     document.getElementById('m-task-drop').textContent   = t.drop   || '—';
     document.getElementById('m-task-status').textContent = t.state_name || t.status || '—';
-
     updateProgressBar(t.state);
-
-    // Confirm buttons — only activate when robot is waiting
-    if (t.state === 3) {
-      enableCollectButton();
-      disableDeliverButton();
-    } else if (t.state === 5) {
-      disableCollectButton();
-      enableDeliverButton();
-    } else {
-      disableCollectButton();
-      disableDeliverButton();
-    }
-
-  } catch (e) {
-    console.error('[current-task] fetch error:', e);
-  }
+    if (t.state === 3) { enableCollectButton(); disableDeliverButton(); }
+    else if (t.state === 5) { disableCollectButton(); enableDeliverButton(); }
+    else { disableCollectButton(); disableDeliverButton(); }
+  } catch (e) { console.error('[current-task] fetch error:', e); }
 }
 
-// ── Robot Alerts (compact) ────────────────────────────────────────────────
-async function loadAlerts() {
+// ── Health Panel ───────────────────────────────────────────────────────────
+function updateHealthPanel(health) {
+  const SUPERVISOR_NAMES = {
+    0: 'Booting', 1: 'Idle', 2: 'Activating', 3: 'Active', 4: 'Deactivating'
+  };
+  const SUPERVISOR_COLORS = {
+    0: 'muted', 1: 'good', 2: 'highlighted', 3: 'good', 4: 'warn'
+  };
+
+  if (!health) {
+    document.getElementById('health-cpu').textContent = '— %';
+    document.getElementById('health-cpu').className = 'health-item-value muted';
+    document.getElementById('health-cpu-bar').style.width = '0%';
+    document.getElementById('health-mem').textContent = '— / — MB';
+    document.getElementById('health-mem').className = 'health-item-value muted';
+    document.getElementById('health-mem-bar').style.width = '0%';
+    document.getElementById('health-supervisor').textContent = '—';
+    document.getElementById('health-supervisor').className = 'health-item-value muted';
+    document.getElementById('health-autonomous').textContent = '—';
+    document.getElementById('health-autonomous').className = 'health-item-value muted';
+    document.getElementById('health-sysmsg').textContent = '—';
+    return;
+  }
+
+  // CPU
+  const cpu = health.cpu_percent || 0;
+  const cpuColor = cpu > 80 ? 'crit' : cpu > 60 ? 'warn' : 'good';
+  const cpuEl = document.getElementById('health-cpu');
+  cpuEl.textContent = `${cpu.toFixed(1)} %`;
+  cpuEl.className = `health-item-value ${cpuColor}`;
+  const cpuBar = document.getElementById('health-cpu-bar');
+  cpuBar.style.width = `${Math.min(cpu, 100)}%`;
+  cpuBar.className = `health-bar-fill ${cpuColor}`;
+
+  // Memory
+  const memUsed = health.memory_used_mb || 0;
+  const memTotal = health.memory_total_mb || 0;
+  const memPct = memTotal > 0 ? (memUsed / memTotal) * 100 : 0;
+  const memColor = memPct > 80 ? 'crit' : memPct > 60 ? 'warn' : 'good';
+  const memEl = document.getElementById('health-mem');
+  memEl.textContent = memTotal > 0 ? `${memUsed.toFixed(0)} / ${memTotal.toFixed(0)} MB` : '— MB';
+  memEl.className = `health-item-value ${memColor}`;
+  const memBar = document.getElementById('health-mem-bar');
+  memBar.style.width = `${Math.min(memPct, 100)}%`;
+  memBar.className = `health-bar-fill ${memColor}`;
+
+  // Supervisor state
+  const supState = health.supervisor_state ?? 0;
+  const supEl = document.getElementById('health-supervisor');
+  supEl.textContent = SUPERVISOR_NAMES[supState] || `State ${supState}`;
+  supEl.className = `health-item-value ${SUPERVISOR_COLORS[supState] || 'muted'}`;
+
+  // Autonomous
+  const autoEl = document.getElementById('health-autonomous');
+  autoEl.textContent = health.autonomous_enabled ? 'Enabled' : 'Disabled';
+  autoEl.className = `health-item-value ${health.autonomous_enabled ? 'good' : 'muted'}`;
+
+  // System message
+  const msgEl = document.getElementById('health-sysmsg');
+  msgEl.textContent = health.system_message || '—';
+  msgEl.className = `health-item-value ${health.system_message ? '' : 'muted'}`;
+  msgEl.style.fontFamily = 'var(--font)';
+  msgEl.style.fontSize = '12px';
+  msgEl.style.fontWeight = '500';
+}
+
+// ── Alerts Panel ───────────────────────────────────────────────────────────
+function updateAlertsPanel(health) {
+  const body  = document.getElementById('alerts-body');
+  const badge = document.getElementById('alerts-badge');
+  if (!body) return;
+
+  if (!health) {
+    body.innerHTML = `<div class="alert-row"><div class="alert-dot gray"></div><div class="alert-row-msg" style="color:var(--text-muted);">Robot offline — no data</div></div>`;
+    if (badge) { badge.textContent = '0 Alerts'; badge.className = 'badge badge-gray'; }
+    return;
+  }
+
+  const alerts = [];
+  if (health.cpu_percent > 80) alerts.push({ dot: 'red', msg: `CPU critical — ${health.cpu_percent.toFixed(1)}%`, tag: 'Warning', tagCls: 'var(--danger-soft)', tagColor: 'var(--danger)' });
+  if (health.memory_total_mb > 0) {
+    const pct = (health.memory_used_mb / health.memory_total_mb) * 100;
+    if (pct > 80) alerts.push({ dot: 'orange', msg: `Memory high — ${pct.toFixed(1)}%`, tag: 'Warning', tagCls: 'var(--warning-soft)', tagColor: 'var(--warning)' });
+  }
+  const stateMap = {
+    0: { dot: 'gray',   msg: 'Robot booting up...', tag: 'Booting', tagCls: '#F0F2F5', tagColor: 'var(--text-secondary)' },
+    1: { dot: 'green',  msg: 'All systems nominal', tag: 'Idle', tagCls: 'var(--accent-2-soft)', tagColor: '#009970' },
+    2: { dot: 'blue',   msg: 'Activating navigation stack...', tag: 'Activating', tagCls: 'var(--accent-soft)', tagColor: 'var(--accent)' },
+    3: { dot: 'green',  msg: 'Robot active — executing delivery', tag: 'Active', tagCls: 'var(--accent-2-soft)', tagColor: '#009970' },
+    4: { dot: 'orange', msg: 'Deactivating navigation stack...', tag: 'Deactivating', tagCls: 'var(--warning-soft)', tagColor: 'var(--warning)' },
+  };
+  const sa = stateMap[health.supervisor_state];
+  if (sa) alerts.push(sa);
+
+  if (alerts.length === 0) {
+    body.innerHTML = `<div class="alert-row"><div class="alert-dot green"></div><div class="alert-row-msg">All systems normal</div><span class="alert-row-tag" style="background:var(--accent-2-soft);color:#009970;">OK</span></div>`;
+    if (badge) { badge.textContent = '0 Alerts'; badge.className = 'badge badge-green'; }
+    return;
+  }
+
+  const warns = alerts.filter(a => a.tag === 'Warning').length;
+  if (badge) {
+    badge.textContent = warns > 0 ? `${warns} Warnings` : `${alerts.length} Alerts`;
+    badge.className = warns > 0 ? 'badge badge-red' : 'badge badge-orange';
+  }
+  body.innerHTML = alerts.map(a => `
+    <div class="alert-row">
+      <div class="alert-dot ${a.dot}"></div>
+      <div class="alert-row-msg">${a.msg}</div>
+      <span class="alert-row-tag" style="font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:10px;background:${a.tagCls};color:${a.tagColor};">${a.tag}</span>
+    </div>`).join('');
+}
+
+// ── Robot Status Pill (desktop + mobile) ──────────────────────────────────
+function updateStatusPills(online, supervisorState) {
+  const pillIds   = ['robot-status-pill', 'robot-status-pill-mobile'];
+  const textIds   = ['robot-status-text', 'robot-status-text-mobile'];
+
+  let cls, txt;
+  if (online && supervisorState === 1) { cls = 'status-pill online'; txt = 'Robot Online'; }
+  else if (online && supervisorState === 0) { cls = 'status-pill connecting'; txt = 'Connecting...'; }
+  else if (online) { cls = 'status-pill online'; txt = 'Robot Online'; }
+  else { cls = 'status-pill offline'; txt = 'Robot Offline'; }
+
+  pillIds.forEach((id, i) => {
+    const el = document.getElementById(id);
+    const tx = document.getElementById(textIds[i]);
+    if (el) el.className = cls;
+    if (tx) tx.textContent = txt;
+  });
+}
+
+// ── Load Robot Status + Health ─────────────────────────────────────────────
+async function loadRobotStatus() {
   try {
     const res  = await fetch(API + '/api/robot-health');
     const data = await res.json();
-    const body  = document.getElementById('alerts-body');
-    const badge = document.getElementById('alerts-badge');
-    if (!body) return;
+    const supervisorState = data.health?.supervisor_state;
+    const online = data.online;
 
-    if (!data.online || !data.health) {
-      body.innerHTML = `
-        <div class="alert-row">
-          <div class="alert-dot gray"></div>
-          <div class="alert-row-msg" style="color:var(--text-muted);">Robot offline — no data</div>
-        </div>`;
-      if (badge) { badge.textContent = '0 Alerts'; badge.className = 'badge badge-gray'; }
-      return;
-    }
+    updateStatusPills(online, supervisorState);
+    updateHealthPanel(online ? data.health : null);
+    updateAlertsPanel(online ? data.health : null);
 
-    const h = data.health;
-    const alerts = [];
-    const now = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-
-    if (h.cpu_percent > 80) {
-      alerts.push({ dot: 'red',    msg: `CPU high — ${h.cpu_percent.toFixed(1)}%`, tag: 'Warning', tagClass: 'badge-red' });
-    }
-    if (h.memory_total_mb > 0) {
-      const memPct = (h.memory_used_mb / h.memory_total_mb) * 100;
-      if (memPct > 80) {
-        alerts.push({ dot: 'orange', msg: `Memory high — ${memPct.toFixed(1)}%`, tag: 'Warning', tagClass: 'badge-orange' });
-      }
-    }
-    if (h.system_message) {
-      alerts.push({ dot: 'blue', msg: h.system_message, tag: 'Info', tagClass: 'badge-blue' });
-    }
-
-    const stateAlerts = {
-      0: { dot: 'gray',   msg: 'Robot booting up...',              tag: 'Booting',      tagClass: 'badge-gray' },
-      1: { dot: 'green',  msg: 'All systems normal — idle',        tag: 'Idle',         tagClass: 'badge-green' },
-      2: { dot: 'blue',   msg: 'Activating navigation stack...',   tag: 'Activating',   tagClass: 'badge-blue' },
-      3: { dot: 'green',  msg: 'Robot active — executing delivery',tag: 'Active',       tagClass: 'badge-green' },
-      4: { dot: 'orange', msg: 'Deactivating navigation stack...', tag: 'Deactivating', tagClass: 'badge-orange' },
-    };
-    const sa = stateAlerts[h.supervisor_state];
-    if (sa) alerts.push(sa);
-
-    if (alerts.length === 0) {
-      body.innerHTML = `
-        <div class="alert-row">
-          <div class="alert-dot green"></div>
-          <div class="alert-row-msg">All systems normal</div>
-          <span class="alert-row-tag badge-green" style="background:var(--accent-2-soft);color:#009970;">OK</span>
-        </div>`;
-      if (badge) { badge.textContent = '0 Alerts'; badge.className = 'badge badge-green'; }
-      return;
-    }
-
-    if (badge) {
-      const warns = alerts.filter(a => a.tag === 'Warning').length;
-      badge.textContent = warns > 0 ? `${warns} Warnings` : `${alerts.length} Alerts`;
-      badge.className = warns > 0 ? 'badge badge-red' : 'badge badge-orange';
-    }
-
-    body.innerHTML = alerts.map(a => `
-      <div class="alert-row">
-        <div class="alert-dot ${a.dot}"></div>
-        <div class="alert-row-msg">${a.msg}</div>
-        <span class="alert-row-tag ${a.tagClass}" style="font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:10px;background:${
-          a.dot==='red'?'var(--danger-soft)':a.dot==='orange'?'var(--warning-soft)':a.dot==='blue'?'var(--accent-soft)':'var(--accent-2-soft)'
-        };color:${
-          a.dot==='red'?'var(--danger)':a.dot==='orange'?'var(--warning)':a.dot==='blue'?'var(--accent)':'#009970'
-        };">${a.tag}</span>
-      </div>`).join('');
-
+    const taskRes  = await fetch(API + '/api/current-task');
+    const taskData = await taskRes.json();
+    const t = taskData.task;
+    updateRobotAction(t ? t.state : null, supervisorState, t ? t.pickup : null, t ? t.drop : null);
+    updateRobotLocation(data.health?.current_tile ?? null);
   } catch(e) {
-    console.error('[alerts] Failed:', e);
+    updateStatusPills(false, null);
+    updateHealthPanel(null);
+    updateAlertsPanel(null);
   }
 }
 
 // ── Robot Action & Location ────────────────────────────────────────────────
-// Called from loadCurrentTask and loadRobotStatus
 function updateRobotAction(state, supervisorState, pickup, drop) {
-  const actionEl  = document.getElementById('robot-action-text');
+  const actionEl    = document.getElementById('robot-action-text');
   const actionBadge = document.getElementById('action-badge');
   if (!actionEl) return;
-
-  // Determine action text from job state
-  let actionText = 'Waiting for a job...';
-  let badgeClass = 'badge-gray';
-  let badgeText  = 'Idle';
-
-  if (supervisorState === 0) {
-    actionText = 'System booting up...';
-    badgeClass = 'badge-gray'; badgeText = 'Booting';
-  } else if (supervisorState === 2) {
-    actionText = 'Starting navigation systems...';
-    badgeClass = 'badge-blue'; badgeText = 'Activating';
-  } else if (supervisorState === 4) {
-    actionText = 'Shutting down navigation...';
-    badgeClass = 'badge-orange'; badgeText = 'Deactivating';
-  }
-
+  let actionText = 'Waiting for a job...', badgeClass = 'badge-gray', badgeText = 'Idle';
+  if (supervisorState === 0) { actionText = 'System booting up...'; badgeClass = 'badge-gray'; badgeText = 'Booting'; }
+  else if (supervisorState === 2) { actionText = 'Starting navigation systems...'; badgeClass = 'badge-blue'; badgeText = 'Activating'; }
+  else if (supervisorState === 4) { actionText = 'Shutting down navigation...'; badgeClass = 'badge-orange'; badgeText = 'Deactivating'; }
   if (state !== null && state !== undefined) {
     if (state === 0) { actionText = 'Job queued — waiting to start'; badgeClass = 'badge-gray'; badgeText = 'Queued'; }
     else if (state === 1) { actionText = 'Preparing navigation stack...'; badgeClass = 'badge-blue'; badgeText = 'Preparing'; }
-    else if (state === 2) { actionText = `Heading to pickup point — ${pickup || ''}`.trim().replace(/—\s*$/, ''); badgeClass = 'badge-blue'; badgeText = 'En Route'; }
-    else if (state === 3) { actionText = `Waiting at pickup — ${pickup || ''}`.trim().replace(/—\s*$/, ''); badgeClass = 'badge-orange'; badgeText = 'At Pickup'; }
-    else if (state === 4) { actionText = `Heading to destination — ${drop || ''}`.trim().replace(/—\s*$/, ''); badgeClass = 'badge-blue'; badgeText = 'En Route'; }
-    else if (state === 5) { actionText = `Waiting at destination — ${drop || ''}`.trim().replace(/—\s*$/, ''); badgeClass = 'badge-orange'; badgeText = 'At Drop'; }
+    else if (state === 2) { actionText = `Heading to pickup — ${pickup||''}`.trim().replace(/—\s*$/,''); badgeClass = 'badge-blue'; badgeText = 'En Route'; }
+    else if (state === 3) { actionText = `Waiting at pickup — ${pickup||''}`.trim().replace(/—\s*$/,''); badgeClass = 'badge-orange'; badgeText = 'At Pickup'; }
+    else if (state === 4) { actionText = `Heading to destination — ${drop||''}`.trim().replace(/—\s*$/,''); badgeClass = 'badge-blue'; badgeText = 'En Route'; }
+    else if (state === 5) { actionText = `Waiting at destination — ${drop||''}`.trim().replace(/—\s*$/,''); badgeClass = 'badge-orange'; badgeText = 'At Drop'; }
     else if (state === 6) { actionText = 'Proceeding to home location'; badgeClass = 'badge-blue'; badgeText = 'Returning'; }
     else if (state === 7) { actionText = 'Job complete — robot at home'; badgeClass = 'badge-green'; badgeText = 'Complete'; }
     else if (state === 8) { actionText = 'Delivery failed'; badgeClass = 'badge-red'; badgeText = 'Failed'; }
     else if (state === 9) { actionText = 'Job cancelled'; badgeClass = 'badge-gray'; badgeText = 'Cancelled'; }
   }
-
   actionEl.textContent = actionText;
-  if (actionBadge) {
-    actionBadge.textContent = badgeText;
-    actionBadge.className = `badge ${badgeClass}`;
-  }
+  if (actionBadge) { actionBadge.textContent = badgeText; actionBadge.className = `badge ${badgeClass}`; }
 }
 
-// Update tile / location display
 function updateRobotLocation(tileNum) {
   const nameEl  = document.getElementById('robot-tile-name');
   const badgeEl = document.getElementById('robot-tile-badge');
   if (!nameEl || !badgeEl) return;
-
-  if (tileNum === null || tileNum === undefined) {
-    nameEl.textContent = '—';
-    badgeEl.style.display = 'none';
-    return;
-  }
-
+  if (tileNum === null || tileNum === undefined) { nameEl.textContent = '—'; badgeEl.style.display = 'none'; return; }
   const tileName = getTileName(tileNum);
-  if (tileName) {
-    nameEl.textContent = tileName;
-    badgeEl.textContent = `Tile ${tileNum}`;
-    badgeEl.style.display = 'inline-flex';
-  } else {
-    // No name mapped yet — show tile number fallback
-    nameEl.textContent = `Tile ${tileNum}`;
-    badgeEl.style.display = 'none';
-  }
-}
-
-// ── Robot Status (online/offline/connecting) ───────────────────────────────
-async function loadRobotStatus() {
-  try {
-    const res  = await fetch(API + '/api/robot-health');
-    const data = await res.json();
-    const pill = document.getElementById('robot-status-pill');
-    const text = document.getElementById('robot-status-text');
-    if (!pill || !text) return;
-
-    const supervisorState = data.health?.supervisor_state;
-    const online = data.online;
-
-    // Change 6: supervisor_state 0 (BOOTING) → "Connecting",
-    //           supervisor_state 1 (IDLE)    → "Robot Online"
-    //           anything else / offline      → "Robot Offline"
-    if (online && supervisorState === 1) {
-      // IDLE → Online
-      text.textContent = 'Robot Online';
-      pill.className = 'status-pill online';
-    } else if (online && supervisorState === 0) {
-      // BOOTING → Connecting
-      text.textContent = 'Connecting...';
-      pill.className = 'status-pill connecting';
-    } else if (online) {
-      // ACTIVATING / ACTIVE / DEACTIVATING — show as online too
-      text.textContent = 'Robot Online';
-      pill.className = 'status-pill online';
-    } else {
-      // Not sending any heartbeat
-      text.textContent = 'Robot Offline';
-      pill.className = 'status-pill offline';
-    }
-
-    // Also update robot action block from health data
-    const taskRes  = await fetch(API + '/api/current-task');
-    const taskData = await taskRes.json();
-    const t = taskData.task;
-    updateRobotAction(
-      t ? t.state : null,
-      supervisorState,
-      t ? t.pickup : null,
-      t ? t.drop : null
-    );
-
-    // Tile from health if exposed, otherwise not set yet
-    const tileNum = data.health?.current_tile ?? null;
-    updateRobotLocation(tileNum);
-
-  } catch(e) {
-    const pill = document.getElementById('robot-status-pill');
-    const text = document.getElementById('robot-status-text');
-    if (pill && text) {
-      text.textContent = 'Connecting...';
-      pill.className = 'status-pill connecting';
-    }
-  }
+  if (tileName) { nameEl.textContent = tileName; badgeEl.textContent = `Tile ${tileNum}`; badgeEl.style.display = 'inline-flex'; }
+  else { nameEl.textContent = `Tile ${tileNum}`; badgeEl.style.display = 'none'; }
 }
 
 // ── Progress Bar ───────────────────────────────────────────────────────────
-// Steps:
-//   1 = Heading to Pickup Point  (states 0,1,2)
-//   2 = Drop the Parcel on Bot   (state 3 — arrived at pickup)
-//   3 = Heading to Destination   (state 4)
-//   4 = Confirm Delivery         (state 5 — arrived at drop)
-//   5 = Done                     (state 6,7)
 function updateProgressBar(state) {
   const dots  = [1,2,3,4,5].map(i => document.getElementById(`step-dot-${i}`));
   const lines = [1,2,3,4].map(i => document.getElementById(`step-line-${i}`));
   const lbls  = [1,2,3,4,5].map(i => document.getElementById(`step-lbl-${i}`));
-
-  // Reset
-  dots.forEach((d,i) => {
-    if (!d) return;
-    d.className = 'step-dot todo';
-    d.textContent = i === 4 ? '✓' : (i + 1);
-  });
-  lines.forEach(l => { if (l) { l.className = 'step-line'; } });
-  lbls.forEach(l => { if (l) { l.classList.remove('active','done-lbl'); } });
-
-  // Labels (static — updated text from change 3)
-  const labelTexts = [
-    'Heading to Pickup Point',
-    'Drop the Parcel on the Bot',
-    'Heading to Destination',
-    'Confirm Delivery',
-    'Done'
-  ];
+  dots.forEach((d,i) => { if (!d) return; d.className = 'step-dot todo'; d.textContent = i === 4 ? '✓' : (i + 1); });
+  lines.forEach(l => { if (l) l.className = 'step-line'; });
+  lbls.forEach(l => { if (l) l.classList.remove('active','done-lbl'); });
+  const labelTexts = ['Heading to Pickup Point','Drop the Parcel on the Bot','Heading to Destination','Confirm Delivery','Done'];
   lbls.forEach((l,i) => { if (l) l.textContent = labelTexts[i]; });
-
   if (state === null || state === undefined) return;
-
-  // Map ROS state → progress step
   let activeStep = 0;
   if (state === 0 || state === 1 || state === 2) activeStep = 1;
-  else if (state === 3)                          activeStep = 2;
-  else if (state === 4)                          activeStep = 3;
-  else if (state === 5)                          activeStep = 4;
-  else if (state === 6 || state === 7)           activeStep = 5;
-
+  else if (state === 3) activeStep = 2;
+  else if (state === 4) activeStep = 3;
+  else if (state === 5) activeStep = 4;
+  else if (state === 6 || state === 7) activeStep = 5;
   for (let i = 0; i < 5; i++) {
     if (!dots[i]) continue;
-    if (i + 1 < activeStep) {
-      dots[i].className = 'step-dot done';
-      dots[i].textContent = '✓';
-      if (lines[i]) lines[i].className = 'step-line done';
-      if (lbls[i]) lbls[i].classList.add('done-lbl');
-    } else if (i + 1 === activeStep) {
-      dots[i].className = 'step-dot active';
-      dots[i].textContent = i === 4 ? '✓' : (i + 1);
-      if (lines[i]) lines[i].className = 'step-line active';
-      if (lbls[i]) lbls[i].classList.add('active');
-    }
+    if (i + 1 < activeStep) { dots[i].className = 'step-dot done'; dots[i].textContent = '✓'; if (lines[i]) lines[i].className = 'step-line done'; if (lbls[i]) lbls[i].classList.add('done-lbl'); }
+    else if (i + 1 === activeStep) { dots[i].className = 'step-dot active'; dots[i].textContent = i === 4 ? '✓' : (i + 1); if (lines[i]) lines[i].className = 'step-line active'; if (lbls[i]) lbls[i].classList.add('active'); }
   }
-
-  if (state === 7) {
-    dots.forEach(d => { if (d) { d.className = 'step-dot done'; d.textContent = '✓'; } });
-    lines.forEach(l => { if (l) l.className = 'step-line done'; });
-    lbls.forEach(l => { if (l) { l.classList.remove('active'); l.classList.add('done-lbl'); } });
-  }
+  if (state === 7) { dots.forEach(d => { if (d) { d.className = 'step-dot done'; d.textContent = '✓'; } }); lines.forEach(l => { if (l) l.className = 'step-line done'; }); lbls.forEach(l => { if (l) { l.classList.remove('active'); l.classList.add('done-lbl'); } }); }
 }
 
-// ── Collect / Pickup Button ────────────────────────────────────────────────
-// Renamed per change 3: "Drop the Parcel on the Bot — Click to Confirm Pickup"
+// ── Collect Button ─────────────────────────────────────────────────────────
 function enableCollectButton() {
-  const btn    = document.getElementById('collect-parcel-btn');
+  const btn = document.getElementById('collect-parcel-btn');
   const btnMob = document.getElementById('collect-parcel-btn-mobile');
-  const hint   = document.getElementById('collect-hint');
-  if (btn) {
-    btn.disabled = false;
-    btn.classList.add('action-btn-enabled');
-    btn.style.cursor = 'pointer';
-    btn.innerHTML = '<span style="font-size:18px;">📦</span> Drop the Parcel on the Bot — Click to Confirm Pickup';
-  }
-  if (btnMob) {
-    btnMob.disabled = false;
-    btnMob.classList.add('action-btn-enabled');
-    btnMob.style.cursor = 'pointer';
-    btnMob.innerHTML = '<span>📦</span> Drop Parcel on Bot — Confirm Pickup';
-  }
-  if (hint) {
-    hint.textContent = '⚠ Robot is at the pickup room. Drop the parcel and tap to confirm.';
-    hint.style.color = 'var(--accent-2)';
-    hint.style.fontWeight = '600';
-  }
+  const hint = document.getElementById('collect-hint');
+  if (btn) { btn.disabled = false; btn.classList.add('action-btn-enabled'); btn.style.cursor = 'pointer'; btn.innerHTML = '<span style="font-size:18px;">📦</span> Drop the Parcel on the Bot — Click to Confirm Pickup'; }
+  if (btnMob) { btnMob.disabled = false; btnMob.classList.add('action-btn-enabled'); btnMob.style.cursor = 'pointer'; btnMob.innerHTML = '<span>📦</span> Drop Parcel on Bot — Confirm Pickup'; }
+  if (hint) { hint.textContent = '⚠ Robot is at the pickup room. Drop the parcel and tap to confirm.'; hint.style.color = 'var(--accent-2)'; hint.style.fontWeight = '600'; }
 }
-
 function disableCollectButton() {
-  const btn    = document.getElementById('collect-parcel-btn');
+  const btn = document.getElementById('collect-parcel-btn');
   const btnMob = document.getElementById('collect-parcel-btn-mobile');
-  const hint   = document.getElementById('collect-hint');
-  if (btn) {
-    btn.disabled = true;
-    btn.classList.remove('action-btn-enabled','action-btn-done');
-    btn.style.cssText = 'width:100%;padding:12px;border-radius:var(--radius-sm);border:2px dashed var(--border);background:var(--surface-2);color:var(--text-muted);font-family:var(--font);font-size:14px;font-weight:600;cursor:not-allowed;display:flex;align-items:center;justify-content:center;gap:8px;transition:all 0.2s;';
-    btn.innerHTML = '<span style="font-size:18px;">📦</span> Drop the Parcel on the Bot — Waiting for Robot to Arrive';
-  }
-  if (btnMob) {
-    btnMob.disabled = true;
-    btnMob.classList.remove('action-btn-enabled','action-btn-done');
-    btnMob.style.cssText = 'width:100%;padding:11px;border-radius:var(--radius-sm);border:2px dashed var(--border);background:var(--surface-2);color:var(--text-muted);font-family:var(--font);font-size:13px;font-weight:600;cursor:not-allowed;display:flex;align-items:center;justify-content:center;gap:8px;';
-    btnMob.innerHTML = '<span>📦</span> Drop Parcel on Bot';
-  }
-  if (hint) {
-    hint.textContent = 'This button activates when the robot reaches the pickup room';
-    hint.style.color = 'var(--text-muted)';
-    hint.style.fontWeight = 'normal';
-  }
+  const hint = document.getElementById('collect-hint');
+  if (btn) { btn.disabled = true; btn.classList.remove('action-btn-enabled','action-btn-done'); btn.style.cssText = 'width:100%;padding:12px;border-radius:var(--radius-sm);border:2px dashed var(--border);background:var(--surface-2);color:var(--text-muted);font-family:var(--font);font-size:14px;font-weight:600;cursor:not-allowed;display:flex;align-items:center;justify-content:center;gap:8px;transition:all 0.2s;'; btn.innerHTML = '<span style="font-size:18px;">📦</span> Drop the Parcel on the Bot — Waiting for Robot to Arrive'; }
+  if (btnMob) { btnMob.disabled = true; btnMob.classList.remove('action-btn-enabled','action-btn-done'); btnMob.style.cssText = 'width:100%;padding:11px;border-radius:var(--radius-sm);border:2px dashed var(--border);background:var(--surface-2);color:var(--text-muted);font-family:var(--font);font-size:13px;font-weight:600;cursor:not-allowed;display:flex;align-items:center;justify-content:center;gap:8px;'; btnMob.innerHTML = '<span>📦</span> Drop Parcel on Bot'; }
+  if (hint) { hint.textContent = 'This button activates when the robot reaches the pickup room'; hint.style.color = 'var(--text-muted)'; hint.style.fontWeight = 'normal'; }
 }
-
 async function confirmCollection() {
   try {
     await fetch(API + '/api/confirm-collection', { method: 'POST' });
     const btn = document.getElementById('collect-parcel-btn');
-    if (btn) {
-      btn.classList.remove('action-btn-enabled');
-      btn.classList.add('action-btn-done');
-      btn.disabled = true;
-      btn.style.cursor = 'not-allowed';
-      btn.innerHTML = '<span style="font-size:18px;">✅</span> Parcel Collected — Robot Heading to Destination';
-    }
+    if (btn) { btn.classList.remove('action-btn-enabled'); btn.classList.add('action-btn-done'); btn.disabled = true; btn.style.cursor = 'not-allowed'; btn.innerHTML = '<span style="font-size:18px;">✅</span> Parcel Collected — Robot Heading to Destination'; }
     const hint = document.getElementById('collect-hint');
-    if (hint) {
-      hint.textContent = 'Confirmed! Robot is now heading to the drop room.';
-      hint.style.color = 'var(--accent-2)';
-    }
-  } catch(e) {
-    console.error('[collect] Failed:', e);
-  }
+    if (hint) { hint.textContent = 'Confirmed! Robot is now heading to the drop room.'; hint.style.color = 'var(--accent-2)'; }
+  } catch(e) { console.error('[collect] Failed:', e); }
 }
 
-// ── Delivery / Drop Button ────────────────────────────────────────────────
-// Renamed per change 3: "Confirm Delivery of Parcel"
+// ── Deliver Button ─────────────────────────────────────────────────────────
 function enableDeliverButton() {
-  const btn  = document.getElementById('parcel-received-btn');
+  const btn = document.getElementById('parcel-received-btn');
   const hint = document.getElementById('deliver-hint');
-  if (btn) {
-    btn.disabled = false;
-    btn.classList.add('action-btn-enabled');
-    btn.style.cursor = 'pointer';
-    btn.innerHTML = '<span style="font-size:18px;">✅</span> Confirm Delivery of Parcel — Robot is Waiting!';
-  }
-  if (hint) {
-    hint.textContent = '⚠ Robot is at the drop room. Please confirm delivery to complete the job.';
-    hint.style.color = 'var(--accent-2)';
-    hint.style.fontWeight = '600';
-  }
+  if (btn) { btn.disabled = false; btn.classList.add('action-btn-enabled'); btn.style.cursor = 'pointer'; btn.innerHTML = '<span style="font-size:18px;">✅</span> Confirm Delivery of Parcel — Robot is Waiting!'; }
+  if (hint) { hint.textContent = '⚠ Robot is at the drop room. Please confirm delivery to complete the job.'; hint.style.color = 'var(--accent-2)'; hint.style.fontWeight = '600'; }
 }
-
 function disableDeliverButton() {
-  const btn  = document.getElementById('parcel-received-btn');
+  const btn = document.getElementById('parcel-received-btn');
   const hint = document.getElementById('deliver-hint');
-  if (btn) {
-    btn.disabled = true;
-    btn.classList.remove('action-btn-enabled','action-btn-done');
-    btn.style.cssText = 'width:100%;padding:12px;border-radius:var(--radius-sm);border:2px dashed var(--border);background:var(--surface-2);color:var(--text-muted);font-family:var(--font);font-size:14px;font-weight:600;cursor:not-allowed;display:flex;align-items:center;justify-content:center;gap:8px;transition:all 0.2s;';
-    btn.innerHTML = '<span style="font-size:18px;">✅</span> Confirm Delivery of Parcel — Waiting for Robot to Arrive';
-  }
-  if (hint) {
-    hint.textContent = 'This button activates when the robot reaches the drop room';
-    hint.style.color = 'var(--text-muted)';
-    hint.style.fontWeight = 'normal';
-  }
+  if (btn) { btn.disabled = true; btn.classList.remove('action-btn-enabled','action-btn-done'); btn.style.cssText = 'width:100%;padding:12px;border-radius:var(--radius-sm);border:2px dashed var(--border);background:var(--surface-2);color:var(--text-muted);font-family:var(--font);font-size:14px;font-weight:600;cursor:not-allowed;display:flex;align-items:center;justify-content:center;gap:8px;transition:all 0.2s;'; btn.innerHTML = '<span style="font-size:18px;">✅</span> Confirm Delivery of Parcel — Waiting for Robot to Arrive'; }
+  if (hint) { hint.textContent = 'This button activates when the robot reaches the drop room'; hint.style.color = 'var(--text-muted)'; hint.style.fontWeight = 'normal'; }
 }
-
 async function confirmDelivery() {
   try {
     await fetch(API + '/api/confirm-delivery', { method: 'POST' });
     const btn = document.getElementById('parcel-received-btn');
-    if (btn) {
-      btn.classList.remove('action-btn-enabled');
-      btn.classList.add('action-btn-done');
-      btn.disabled = true;
-      btn.style.cursor = 'not-allowed';
-      btn.innerHTML = '<span style="font-size:18px;">✅</span> Delivery Confirmed — Job Complete!';
-    }
+    if (btn) { btn.classList.remove('action-btn-enabled'); btn.classList.add('action-btn-done'); btn.disabled = true; btn.style.cursor = 'not-allowed'; btn.innerHTML = '<span style="font-size:18px;">✅</span> Delivery Confirmed — Job Complete!'; }
     const hint = document.getElementById('deliver-hint');
-    if (hint) {
-      hint.textContent = 'Delivery complete! Robot returning home.';
-      hint.style.color = 'var(--accent-2)';
+    if (hint) { hint.textContent = 'Delivery complete! Robot returning home.'; hint.style.color = 'var(--accent-2)'; }
+  } catch(e) { console.error('[deliver] Failed:', e); }
+}
+
+// ── Alert Popups ───────────────────────────────────────────────────────────
+let _activePopups = {};
+
+async function loadAlertPopups() {
+  try {
+    const res = await fetch(API + '/api/alerts');
+    if (!res.ok) return;
+    const data = await res.json();
+    const alerts = data.alerts || [];
+    const container = document.getElementById('alert-popup-container');
+    if (!container) return;
+
+    const activeMessages = new Set(alerts.map(a => a.message));
+
+    // Remove popups no longer active
+    for (const [msg, el] of Object.entries(_activePopups)) {
+      if (!activeMessages.has(msg)) {
+        el.classList.remove('show');
+        setTimeout(() => { if (el.parentNode) el.remove(); delete _activePopups[msg]; }, 350);
+      }
     }
-  } catch(e) {
-    console.error('[deliver] Failed:', e);
-  }
+
+    // Add new popups
+    for (const alert of alerts) {
+      if (_activePopups[alert.message]) continue;
+      const cfg = {
+        error:   { border: 'var(--danger)',  icon: '🔴', color: 'var(--danger)' },
+        warning: { border: 'var(--warning)', icon: '⚠️', color: 'var(--warning)' },
+        info:    { border: 'var(--accent)',  icon: 'ℹ️', color: 'var(--accent)' },
+      };
+      const c = cfg[alert.severity] || cfg.warning;
+      const el = document.createElement('div');
+      el.className = 'alert-popup';
+      el.style.borderLeft = `4px solid ${c.border}`;
+      el.innerHTML = `
+        <div class="alert-popup-icon">${c.icon}</div>
+        <div style="flex:1;">
+          <div class="alert-popup-severity" style="color:${c.color};">${(alert.severity||'warning').toUpperCase()}</div>
+          <div class="alert-popup-message">${alert.message}</div>
+        </div>`;
+      container.appendChild(el);
+      _activePopups[alert.message] = el;
+      requestAnimationFrame(() => { requestAnimationFrame(() => el.classList.add('show')); });
+    }
+  } catch(e) { /* alerts endpoint may not exist yet, fail silently */ }
 }
 
 // ── Auto refresh every 3 seconds ──────────────────────────────────────────
 setInterval(() => {
   loadQueue();
   loadCurrentTask();
-  loadAlerts();
   loadRobotStatus();
+  loadAlertPopups();
 }, 3000);
 
 // ── Init ───────────────────────────────────────────────────────────────────
@@ -1430,8 +1409,8 @@ document.addEventListener('DOMContentLoaded', () => {
   loadRooms().then(() => syncSelects());
   loadQueue();
   loadCurrentTask();
-  loadAlerts();
   loadRobotStatus();
+  loadAlertPopups();
 });
 </script>
 </body>
