@@ -39,9 +39,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import asyncio  
 import asyncpg  
-import redis
-
-# ═══════════════════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════════════════════════
 # Database
 # ═══════════════════════════════════════════════════════════════════════════
 
@@ -942,11 +940,11 @@ async def health():
 async def update_alerts(request: Request):
     global _alerts
     data = await request.json()
-    with _lock:
+    async with _lock:  # ✅ Added 'async'
         _alerts = data.get("alerts", [])
     return {"success": True}
 
 @app.get("/api/alerts")
 async def get_alerts():
-    with _lock:
+    async with _lock:  # ✅ Added 'async'
         return {"alerts": list(_alerts)}
