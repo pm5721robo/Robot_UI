@@ -331,9 +331,35 @@ async def list_rooms():
 
 # ── Submit Delivery ──────────────────────────────────────────────────────────
 
-
 @app.post("/api/delivery")
 async def submit_delivery(req: DeliveryRequest, request: Request):
+    # First, check if robot is online
+    robot_online = False
+    robot_message = "Offline"
+    
+    if db_pool:
+        async with db_pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT last_heartbeat, supervisor_state FROM robot_status WHERE id = 1"
+            )
+            if row:
+                robot_online, robot_message = get_robot_online_status(
+                    row["last_heartbeat"], row["supervisor_state"] or 0
+                )
+    else:
+        robot_online, robot_message = get_robot_online_status(
+            _mem_robot.get("last_heartbeat"),
+            _mem_robot.get("supervisor_state", 0)
+        )
+    
+    # Reject if robot is offline
+    if not robot_online:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Robot is {robot_message}. Cannot accept delivery requests."
+        )
+    
+    # Robot is online, proceed with job creation
     job_id = await get_next_job_id()  
     submitter_ip = req.submitter_ip or get_client_ip(request)
     now = datetime.now(timezone.utc)
@@ -437,14 +463,11 @@ async def cancel_job(job_id: str, request: Request):
                     detail="You can only cancel your own requests.")
 
             # If PENDING, just mark cancelled. If already dispatched, add to cancellations for nano.
+            # Inside cancel_job function, around line 400-430
             if row["status"] == "PENDING":
-                await conn.execute(
-                    """
-                    UPDATE jobs SET status = 'CANCELLED', state = 9, state_name = 'Cancelled', updated_at = NOW()
-                    WHERE id = $1
-                """,
-                    job_id,
-                )
+                # Delete pending job immediately (no need to keep)
+                await conn.execute("DELETE FROM jobs WHERE id = $1", job_id)
+                print(f"[cloud] Pending job {job_id} cancelled and deleted")
             else:
                 # Job already dispatched — add to cancellations table for nano to pick up
                 await conn.execute(
@@ -689,35 +712,50 @@ async def update_job_status(job_id: str, update: JobStatusUpdate):
     """Called when ROS publishes job status changes."""
     # Map state to status
     status = "IN_PROGRESS"
+    is_terminal = False
+    
     if update.state == 7:
         status = "COMPLETE"
+        is_terminal = True
     elif update.state == 8:
         status = "FAILED"
+        is_terminal = True
     elif update.state == 9:
         status = "CANCELLED"
+        is_terminal = True
 
     if db_pool:
         async with db_pool.acquire() as conn:
-            await conn.execute(
-                """
-                UPDATE jobs SET status = $1, state = $2, state_name = $3, message = $4, updated_at = NOW()
-                WHERE id = $5
-            """,
-                status,
-                update.state,
-                update.state_name,
-                update.message,
-                job_id,
-            )
+            if is_terminal:
+                # Delete completed/failed/cancelled jobs immediately
+                await conn.execute("DELETE FROM jobs WHERE id = $1", job_id)
+                print(f"[cloud] Job {job_id} ({status}) deleted from database")
+            else:
+                # Update for in-progress jobs
+                await conn.execute(
+                    """
+                    UPDATE jobs SET status = $1, state = $2, state_name = $3, message = $4, updated_at = NOW()
+                    WHERE id = $5
+                """,
+                    status,
+                    update.state,
+                    update.state_name,
+                    update.message,
+                    job_id,
+                )
     else:
+        # Memory mode
         if job_id in _mem_jobs:
-            _mem_jobs[job_id]["status"] = status
-            _mem_jobs[job_id]["state"] = update.state
-            _mem_jobs[job_id]["state_name"] = update.state_name
-            _mem_jobs[job_id]["message"] = update.message
+            if is_terminal:
+                del _mem_jobs[job_id]
+                print(f"[cloud] Job {job_id} ({status}) deleted from memory")
+            else:
+                _mem_jobs[job_id]["status"] = status
+                _mem_jobs[job_id]["state"] = update.state
+                _mem_jobs[job_id]["state_name"] = update.state_name
+                _mem_jobs[job_id]["message"] = update.message
 
     return {"success": True}
-
 
 @app.post("/api/nano/heartbeat")
 async def heartbeat(data: HeartbeatData):

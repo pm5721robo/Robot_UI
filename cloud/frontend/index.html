@@ -853,6 +853,36 @@
 <script>
 const API = 'https://robotui.up.railway.app';
 
+let isRobotOnline = false;
+
+async function checkRobotOnline() {
+    try {
+        const res = await fetch(API + '/api/robot-status');
+        const data = await res.json();
+        isRobotOnline = data.online;
+        
+        // Update submit button state
+        const submitBtn = document.getElementById('submit-btn');
+        if (submitBtn) {
+            if (!isRobotOnline) {
+                submitBtn.disabled = true;
+                submitBtn.style.opacity = '0.5';
+                submitBtn.style.cursor = 'not-allowed';
+                submitBtn.title = 'Robot is offline. Cannot submit tasks.';
+            } else {
+                submitBtn.disabled = false;
+                submitBtn.style.opacity = '1';
+                submitBtn.style.cursor = 'pointer';
+                submitBtn.title = 'Submit delivery task';
+            }
+        }
+        return isRobotOnline;
+    } catch (e) {
+        isRobotOnline = false;
+        return false;
+    }
+}
+
 const TILE_NAMES = {};
 function getTileName(tileNum) {
   if (!tileNum && tileNum !== 0) return null;
@@ -906,40 +936,60 @@ function syncSelects() {
 
 // ── Submit Delivery ────────────────────────────────────────────────────────
 async function submitDelivery() {
-  const pickup   = document.getElementById('pickup-select').value;
-  const drop     = document.getElementById('drop-select').value;
-  const name     = document.getElementById('requested-by').value.trim();
-  const priority = document.getElementById('priority-select').value;
-  const btn      = document.getElementById('submit-btn');
-  if (!pickup)   { showMsg('Please select a Pickup Room.', 'error'); return; }
-  if (!drop)     { showMsg('Please select a Drop Room.', 'error'); return; }
-  if (!name)     { showMsg('Please enter your name.', 'error'); return; }
-  if (!priority) { showMsg('Please select a Priority.', 'error'); return; }
-  btn.disabled = true;
-  btn.textContent = 'Submitting...';
-  try {
-    const res = await fetch(API + '/api/delivery', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pickup, drop, requested_by: name, priority, submitter_ip: MY_IP })
-    });
-    const data = await res.json();
-    if (res.ok) {
-      MY_NAME = name;
-      showMsg(`✅ ${data.message}`, 'success');
-      loadQueue();
-      document.getElementById('pickup-select').value   = '';
-      document.getElementById('drop-select').value     = '';
-      document.getElementById('requested-by').value    = '';
-      document.getElementById('priority-select').value = 'Medium';
-    } else {
-      showMsg(`❌ ${data.detail}`, 'error');
+    // Check if robot is online first
+    const robotOnline = await checkRobotOnline();
+    if (!robotOnline) {
+        showMsg('❌ Robot is offline. Cannot submit delivery requests.', 'error');
+        return;
     }
-  } catch (err) {
-    showMsg('❌ Could not reach server.', 'error');
-  }
-  btn.disabled = false;
-  btn.textContent = 'Submit Request';
+    
+    const pickup = document.getElementById('pickup-select').value;
+    const drop = document.getElementById('drop-select').value;
+    const name = document.getElementById('requested-by').value.trim();
+    const priority = document.getElementById('priority-select').value;
+    const btn = document.getElementById('submit-btn');
+    
+    if (!pickup) { showMsg('Please select a Pickup Room.', 'error'); return; }
+    if (!drop) { showMsg('Please select a Drop Room.', 'error'); return; }
+    if (!name) { showMsg('Please enter your name.', 'error'); return; }
+    if (!priority) { showMsg('Please select a Priority.', 'error'); return; }
+    
+    btn.disabled = true;
+    btn.textContent = 'Submitting...';
+    
+    try {
+        const res = await fetch(API + '/api/delivery', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pickup, drop, requested_by: name, priority, submitter_ip: MY_IP })
+        });
+        
+        // Handle 503 (robot offline) response
+        if (res.status === 503) {
+            const data = await res.json();
+            showMsg(`❌ ${data.detail || 'Robot is offline'}`, 'error');
+            btn.disabled = false;
+            btn.textContent = 'Submit Request';
+            return;
+        }
+        
+        const data = await res.json();
+        if (res.ok) {
+            MY_NAME = name;
+            showMsg(`✅ ${data.message}`, 'success');
+            loadQueue();
+            document.getElementById('pickup-select').value = '';
+            document.getElementById('drop-select').value = '';
+            document.getElementById('requested-by').value = '';
+            document.getElementById('priority-select').value = 'Medium';
+        } else {
+            showMsg(`❌ ${data.detail || 'Submission failed'}`, 'error');
+        }
+    } catch (err) {
+        showMsg('❌ Could not reach server.', 'error');
+    }
+    btn.disabled = false;
+    btn.textContent = 'Submit Request';
 }
 
 function showMsg(text, type) {
@@ -1411,7 +1461,10 @@ document.addEventListener('DOMContentLoaded', () => {
   loadCurrentTask();
   loadRobotStatus();
   loadAlertPopups();
+  checkRobotOnline();
 });
+
+setInterval(checkRobotOnline, 5000);  
 </script>
 </body>
 </html>
