@@ -1,5 +1,11 @@
 [build]
 builder = "NIXPACKS"
 
+[build.environment]
+PYTHON_VERSION = "3.11"
+
 [deploy]
 startCommand = "cd cloud && uvicorn main:app --host 0.0.0.0 --port $PORT"
+
+[deploy.build]
+installCommand = "cd cloud && pip install -r ../requirements.txt"
