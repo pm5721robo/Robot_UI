@@ -247,10 +247,10 @@ class RobotBridgeNode(Node):
 
         response = future.result()
         logger.info(
-            f"[ros_bridge] /job/confirm: success={response.success} {response.message}"
+            f"[ros_bridge] /job/confirm: accepted={response.accepted} {response.message}"
         )
 
-        return {"success": response.success, "message": response.message}
+        return {"success": response.accepted, "message": response.message}
 
     # ════════════════════════════════════════════════════════════════════
     # Subscription Callbacks
