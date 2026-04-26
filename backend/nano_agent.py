@@ -288,10 +288,14 @@ def poll_cancellations():
         result = ros_bridge.cancel_job(job_id=job_id)
         if result.get("accepted"):
             log.info(f"Cancel sent to ROS: {job_id}")
-            # Tell cloud cancellation was accepted
-            post(f"/api/nano/cancel_confirm/{job_id}")  # Add this line
+            post(f"/api/nano/cancel_confirm/{job_id}")
         else:
-            log.warning(f"Cancel failed for {job_id}: {result.get('message')}")
+            msg = result.get("message", "")
+            log.warning(f"Cancel failed for {job_id}: {msg}")
+            # Job not active in ROS means it already finished — ack so cloud stops retrying
+            if "not currently active" in msg:
+                log.info(f"Job {job_id} already inactive, acknowledging cancel to cloud")
+                post(f"/api/nano/cancel_confirm/{job_id}")
 
             
 # ═══════════════════════════════════════════════════════════════════════════
