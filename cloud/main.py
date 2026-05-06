@@ -37,8 +37,8 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import asyncio  
-import asyncpg  
+import asyncio
+import asyncpg
 # ════════════════════════════════════════════════════════════════════════
 # Database
 # ═══════════════════════════════════════════════════════════════════════════
@@ -140,7 +140,7 @@ async def init_db():
 
     print("[cloud] Database initialized ✓")
 
-    
+
 async def close_db():
     global db_pool
     if db_pool:
@@ -160,7 +160,7 @@ async def get_next_job_id():
         current = get_next_job_id.counter
         get_next_job_id.counter += 1
         return f"JOB_{current:03d}"
-    
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Fallback in-memory storage (when DATABASE_URL not set)
@@ -181,7 +181,7 @@ _mem_rooms = []
 _mem_confirmations = {"confirm_collection": False, "confirm_delivery": False}
 _mem_cancellations = []
 _alerts: list = []
-_lock = asyncio.Lock() 
+_lock = asyncio.Lock()
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Models
@@ -243,7 +243,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-FRONTEND_DIR = os.getenv("FRONTEND_DIR", ".cloud/frontend/index.html")
+FRONTEND_DIR = os.getenv("FRONTEND_DIR", "cloud/frontend")
 HEARTBEAT_TIMEOUT = 10  # seconds — nano_agent unreachable if no heartbeat
 
 # Supervisor states (from system_supervisor)
@@ -331,12 +331,13 @@ async def list_rooms():
 
 # ── Submit Delivery ──────────────────────────────────────────────────────────
 
+
 @app.post("/api/delivery")
 async def submit_delivery(req: DeliveryRequest, request: Request):
     # First, check if robot is online
     robot_online = False
     robot_message = "Offline"
-    
+
     if db_pool:
         async with db_pool.acquire() as conn:
             row = await conn.fetchrow(
@@ -344,23 +345,22 @@ async def submit_delivery(req: DeliveryRequest, request: Request):
             )
             if row:
                 robot_online, robot_message = get_robot_online_status(
-                    row["last_heartbeat"], row["supervisor_state"] or 0
-                )
+                    row["last_heartbeat"], row["supervisor_state"] or 0)
     else:
         robot_online, robot_message = get_robot_online_status(
             _mem_robot.get("last_heartbeat"),
-            _mem_robot.get("supervisor_state", 0)
-        )
-    
+            _mem_robot.get("supervisor_state", 0))
+
     # Reject if robot is offline
     if not robot_online:
         raise HTTPException(
             status_code=503,
-            detail=f"Robot is {robot_message}. Cannot accept delivery requests."
+            detail=
+            f"Robot is {robot_message}. Cannot accept delivery requests.",
         )
-    
+
     # Robot is online, proceed with job creation
-    job_id = await get_next_job_id()  
+    job_id = await get_next_job_id()
     submitter_ip = req.submitter_ip or get_client_ip(request)
     now = datetime.now(timezone.utc)
 
@@ -713,7 +713,7 @@ async def update_job_status(job_id: str, update: JobStatusUpdate):
     # Map state to status
     status = "IN_PROGRESS"
     is_terminal = False
-    
+
     if update.state == 7:
         status = "COMPLETE"
         is_terminal = True
@@ -756,6 +756,7 @@ async def update_job_status(job_id: str, update: JobStatusUpdate):
                 _mem_jobs[job_id]["message"] = update.message
 
     return {"success": True}
+
 
 @app.post("/api/nano/heartbeat")
 async def heartbeat(data: HeartbeatData):
@@ -973,7 +974,6 @@ async def health():
     }
 
 
-
 @app.post("/api/nano/alerts")
 async def update_alerts(request: Request):
     global _alerts
@@ -981,6 +981,7 @@ async def update_alerts(request: Request):
     async with _lock:  # ✅ Added 'async'
         _alerts = data.get("alerts", [])
     return {"success": True}
+
 
 @app.get("/api/alerts")
 async def get_alerts():
