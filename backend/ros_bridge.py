@@ -329,6 +329,13 @@ class RobotBridgeNode(Node):
         self._awaiting_confirmation = {"waiting": False, "data": ""}
 
     def get_robot_health(self) -> dict:
+        """Returns health dict only if data is fresh, else None.
+        
+        When the supervisor stops publishing /robot_health (crash, shutdown, etc.)
+        this returns None instead of stale data, so callers can detect the silence.
+        """
+        if not self.is_robot_online():
+            return None
         return self._robot_health
 
     def is_robot_online(self) -> bool:

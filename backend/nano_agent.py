@@ -220,18 +220,28 @@ def push_job_status():
 
 
 def send_heartbeat():
-    """Send heartbeat with health data to cloud."""
+    """Send heartbeat with health data to cloud.
+
+    If ros_bridge hasn't received a /robot_health message recently (supervisor
+    crashed, shutdown, or ROS comms lost), get_robot_health() returns None.
+    We forward supervisor_state=0 so the cloud correctly shows "Connecting..."
+    rather than staying Online with stale data.
+    """
     try:
         status = ros_bridge.get_current_status()
-        health = ros_bridge.get_robot_health()
+        health = ros_bridge.get_robot_health()  # None when supervisor is silent
+
+        ros_alive = health is not None
+        if not ros_alive:
+            log.warning("Supervisor silent — /robot_health stale, reporting supervisor_state=0")
 
         payload = {
-            "current_job_id": status.get("ros_job_id", "") if status else "",
-            "cpu_percent": health.get("cpu_percent", 0) if health else 0,
-            "memory_used_mb": health.get("memory_used_mb", 0) if health else 0,
-            "memory_total_mb": health.get("memory_total_mb", 0) if health else 0,
-            "supervisor_state": health.get("supervisor_state", 0) if health else 0,
-            "system_message": health.get("system_message", "") if health else "",
+            "current_job_id":   status.get("ros_job_id", "") if status else "",
+            "cpu_percent":      health.get("cpu_percent", 0)      if ros_alive else 0,
+            "memory_used_mb":   health.get("memory_used_mb", 0)   if ros_alive else 0,
+            "memory_total_mb":  health.get("memory_total_mb", 0)  if ros_alive else 0,
+            "supervisor_state": health.get("supervisor_state", 0) if ros_alive else 0,
+            "system_message":   health.get("system_message", "")  if ros_alive else "Supervisor unreachable",
         }
 
         post("/api/nano/heartbeat", payload)
