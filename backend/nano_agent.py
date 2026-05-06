@@ -21,13 +21,13 @@ import logging
 import os
 import requests
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s [nano] %(message)s", datefmt="%H:%M:%S"
-)
+logging.basicConfig(level=logging.INFO,
+                    format="%(asctime)s [nano] %(message)s",
+                    datefmt="%H:%M:%S")
 log = logging.getLogger("nano")
 
 # ── Config ────────────────────────────────────────────────────────────────────
-CLOUD_URL = os.getenv("CLOUD_URL", "https://robotui.up.railway.app")
+CLOUD_URL = os.getenv("CLOUD_URL", "https://robot-ui-qawr.onrender.com")
 POLL_INTERVAL = 2.0  # seconds
 REQUEST_TIMEOUT = 5  # seconds per request
 
@@ -70,7 +70,9 @@ def get(path: str):
 def post(path: str, data=None):
     """POST request to cloud."""
     try:
-        r = session.post(f"{CLOUD_URL}{path}", json=data or {}, timeout=REQUEST_TIMEOUT)
+        r = session.post(f"{CLOUD_URL}{path}",
+                         json=data or {},
+                         timeout=REQUEST_TIMEOUT)
         if r.ok:
             return r.json()
         log.warning(f"POST {path} failed: {r.status_code}")
@@ -89,9 +91,10 @@ def push_rooms():
     """Load rooms from tiles_config.yaml and push to cloud."""
     try:
         import yaml
+
         yaml_path = os.getenv(
             "TILES_CONFIG_PATH",
-            "/workspace/ros_ws/src/tile_manager/config/tiles_config.yaml"
+            "/workspace/ros_ws/src/tile_manager/config/tiles_config.yaml",
         )
         with open(yaml_path, "r") as f:
             config = yaml.safe_load(f)
@@ -104,10 +107,14 @@ def push_rooms():
                     continue
                 seen.add(room_id)
                 rooms.append({
-                    "id": room_id,
-                    "description": room_data.get("description", ""),
-                    "coordinates": room_data.get("coordinates", [0.0, 0.0]),
-                    "tile": int(tile_id),
+                    "id":
+                    room_id,
+                    "description":
+                    room_data.get("description", ""),
+                    "coordinates":
+                    room_data.get("coordinates", [0.0, 0.0]),
+                    "tile":
+                    int(tile_id),
                 })
         rooms.sort(key=lambda r: r["id"])
 
@@ -119,7 +126,10 @@ def push_rooms():
     except Exception as e:
         log.error(f"push_rooms error: {e}")
         import traceback
+
         traceback.print_exc()
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # Poll for pending jobs and submit to ROS
 # ═══════════════════════════════════════════════════════════════════════════
@@ -167,7 +177,8 @@ def poll_and_dispatch_jobs():
             post(f"/api/nano/accept/{job_id}")
             log.info(f"ROS accepted: {job_id}")
         else:
-            log.warning(f"ROS rejected {job_id}: {result.get('message', 'unknown')}")
+            log.warning(
+                f"ROS rejected {job_id}: {result.get('message', 'unknown')}")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -188,7 +199,8 @@ def push_job_status():
         return
 
     # Check if status changed
-    current = (status.get("state"), status.get("state_name"), status.get("message", ""))
+    current = (status.get("state"), status.get("state_name"),
+               status.get("message", ""))
     if _last_status.get(job_id) == current:
         return
 
@@ -229,25 +241,34 @@ def send_heartbeat():
     """
     try:
         status = ros_bridge.get_current_status()
-        health = ros_bridge.get_robot_health()  # None when supervisor is silent
+        health = ros_bridge.get_robot_health(
+        )  # None when supervisor is silent
 
         ros_alive = health is not None
         if not ros_alive:
-            log.warning("Supervisor silent — /robot_health stale, reporting supervisor_state=0")
+            log.warning(
+                "Supervisor silent — /robot_health stale, reporting supervisor_state=0"
+            )
 
         payload = {
-            "current_job_id":   status.get("ros_job_id", "") if status else "",
-            "cpu_percent":      health.get("cpu_percent", 0)      if ros_alive else 0,
-            "memory_used_mb":   health.get("memory_used_mb", 0)   if ros_alive else 0,
-            "memory_total_mb":  health.get("memory_total_mb", 0)  if ros_alive else 0,
-            "supervisor_state": health.get("supervisor_state", 0) if ros_alive else 0,
-            "system_message":   health.get("system_message", "")  if ros_alive else "Supervisor unreachable",
+            "current_job_id":
+            status.get("ros_job_id", "") if status else "",
+            "cpu_percent":
+            health.get("cpu_percent", 0) if ros_alive else 0,
+            "memory_used_mb":
+            health.get("memory_used_mb", 0) if ros_alive else 0,
+            "memory_total_mb":
+            health.get("memory_total_mb", 0) if ros_alive else 0,
+            "supervisor_state":
+            health.get("supervisor_state", 0) if ros_alive else 0,
+            "system_message":
+            health.get("system_message", "")
+            if ros_alive else "Supervisor unreachable",
         }
 
         post("/api/nano/heartbeat", payload)
     except Exception as e:
         log.error(f"heartbeat error: {e}")
-
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -260,6 +281,7 @@ def push_alerts():
         post("/api/nano/alerts", {"alerts": alerts})
     except Exception as e:
         log.error(f"push_alerts error: {e}")
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Poll confirmations
@@ -304,10 +326,12 @@ def poll_cancellations():
             log.warning(f"Cancel failed for {job_id}: {msg}")
             # Job not active in ROS means it already finished — ack so cloud stops retrying
             if "not currently active" in msg:
-                log.info(f"Job {job_id} already inactive, acknowledging cancel to cloud")
+                log.info(
+                    f"Job {job_id} already inactive, acknowledging cancel to cloud"
+                )
                 post(f"/api/nano/cancel_confirm/{job_id}")
 
-            
+
 # ═══════════════════════════════════════════════════════════════════════════
 # Main loop
 # ═══════════════════════════════════════════════════════════════════════════
@@ -369,4 +393,3 @@ if __name__ == "__main__":
         ros_bridge.shutdown_ros()
         session.close()
         log.info("Stopped.")
-
