@@ -280,7 +280,6 @@ def get_robot_online_status(last_heartbeat,
                             supervisor_state: int) -> tuple[bool, str]:
     """
     Returns (online: bool, message: str) based on heartbeat and supervisor state.
-
     - No heartbeat → Offline
     - BOOTING (0) → Connecting...
     - IDLE+ (1-4) → Online
@@ -556,68 +555,31 @@ async def current_task():
 
 @app.get("/api/robot-status")
 async def robot_status():
-    if db_pool:
-        async with db_pool.acquire() as conn:
-            row = await conn.fetchrow(
-                "SELECT last_heartbeat, supervisor_state FROM robot_status WHERE id = 1"
-            )
-            if not row:
-                return {"online": False, "message": "Offline"}
-            online, message = get_robot_online_status(
-                row["last_heartbeat"], row["supervisor_state"] or 0)
-    else:
-        online, message = get_robot_online_status(
-            _mem_robot.get("last_heartbeat"),
-            _mem_robot.get("supervisor_state", 0))
-
+    online, message = get_robot_online_status(
+        _mem_robot.get("last_heartbeat"),
+        _mem_robot.get("supervisor_state", 0))
     return {"online": online, "message": message}
-
 
 # ── Robot Health ─────────────────────────────────────────────────────────────
 
-
 @app.get("/api/robot-health")
 async def robot_health():
-    if db_pool:
-        async with db_pool.acquire() as conn:
-            row = await conn.fetchrow("SELECT * FROM robot_status WHERE id = 1"
-                                      )
-            if not row:
-                return {"online": False, "message": "Offline"}
-            online, message = get_robot_online_status(
-                row["last_heartbeat"], row["supervisor_state"] or 0)
-            if not online:
-                return {"online": False, "message": message}
-            return {
-                "online": True,
-                "health": {
-                    "cpu_percent": row["cpu_percent"],
-                    "memory_used_mb": row["memory_used_mb"],
-                    "memory_total_mb": row["memory_total_mb"],
-                    "supervisor_state": row["supervisor_state"],
-                    "system_message": row["system_message"],
-                    "autonomous_enabled": True,
-                },
-            }
-    else:
-        online, message = get_robot_online_status(
-            _mem_robot.get("last_heartbeat"),
-            _mem_robot.get("supervisor_state", 0))
-        if not online:
-            return {"online": False, "message": message}
-        return {
-            "online": True,
-            "health": {
-                "cpu_percent": _mem_robot["cpu_percent"],
-                "memory_used_mb": _mem_robot["memory_used_mb"],
-                "memory_total_mb": _mem_robot["memory_total_mb"],
-                "supervisor_state": _mem_robot["supervisor_state"],
-                "system_message": _mem_robot["system_message"],
-                "autonomous_enabled": True,
-            },
-        }
-
-
+    online, message = get_robot_online_status(
+        _mem_robot.get("last_heartbeat"),
+        _mem_robot.get("supervisor_state", 0))
+    if not online:
+        return {"online": False, "message": message}
+    return {
+        "online": True,
+        "health": {
+            "cpu_percent": _mem_robot["cpu_percent"],
+            "memory_used_mb": _mem_robot["memory_used_mb"],
+            "memory_total_mb": _mem_robot["memory_total_mb"],
+            "supervisor_state": _mem_robot["supervisor_state"],
+            "system_message": _mem_robot["system_message"],
+            "autonomous_enabled": True,
+        },
+    }
 # ── Confirm Collection ───────────────────────────────────────────────────────
 
 
